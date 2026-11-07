@@ -332,7 +332,8 @@ class RecipeStats:
             params=params,
             details={
                 "metric": "n_ingredients as stored in recipe_stats "
-                "(count of cleaned ingredient lines per recipe)",
+                "(count of cleaned ingredient lines per recipe, excluding lines "
+                "recognised as notes such as 'Special equipment:')",
                 "terms_resolved": self._terms_resolved(flt),
             },
         )

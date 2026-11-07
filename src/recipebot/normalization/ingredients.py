@@ -11,6 +11,8 @@ Regex pipeline: lowercase, drop unicode fractions and (notes), keep text before 
 strip the leading quantity, cut at the first "or", drop descriptor words and leading units,
 singularize the LAST word, then apply the synonym map.
 Different forms stay different: "garlic powder" != "garlic", "coconut milk" != "milk".
+
+Step 4b: extra descriptor words can be added from data/taxonomy/descriptors_extra.yaml.
 """
 from __future__ import annotations
 
@@ -86,11 +88,26 @@ def load_synonyms(path: Path | str | None = None) -> dict[str, str]:
     return {str(k).lower(): str(v).lower() for k, v in (data.get("synonyms") or {}).items()}
 
 
+def load_extra_descriptors(path: Path | str | None = None) -> set[str]:
+    """Load data/taxonomy/descriptors_extra.yaml (empty set if the file is missing)."""
+    path = Path(path) if path else config.TAXONOMY_DIR / \
+        "descriptors_extra.yaml"
+    if not path.exists():
+        return set()
+    data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    return {str(w).strip().lower() for w in (data.get("descriptors") or []) if str(w).strip()}
+
+
 class IngredientNormalizer:
     """Rule-based normalizer. Results are cached because lines repeat a lot."""
 
-    def __init__(self, synonyms: dict[str, str] | None = None) -> None:
+    def __init__(
+        self,
+        synonyms: dict[str, str] | None = None,
+        extra_descriptors: set[str] | None = None,
+    ) -> None:
         self.synonyms = dict(synonyms or {})
+        self.descriptors = DESCRIPTORS | set(extra_descriptors or ())
         self._cache: dict[str, str] = {}
 
     def canonical(self, line: str) -> str:
@@ -102,7 +119,7 @@ class IngredientNormalizer:
     def normalize_name(self, name: str) -> str:
         """Clean a name extracted by the parser: drop descriptors, singularize, apply synonyms."""
         tokens = [t for t in _WORD.findall(
-            name.lower()) if t not in DESCRIPTORS]
+            name.lower()) if t not in self.descriptors]
         return self._finish(tokens)
 
     def _finish(self, tokens: list[str]) -> str:
@@ -125,7 +142,7 @@ class IngredientNormalizer:
         if "or" in tokens[1:]:  # "butter or margarine" -> keep the first alternative
             tokens = tokens[: tokens.index("or", 1)]
 
-        tokens = [t for t in tokens if t not in DESCRIPTORS]
+        tokens = [t for t in tokens if t not in self.descriptors]
         while tokens and (tokens[0] in UNITS or tokens[0] == "of"):
             tokens.pop(0)
         return self._finish(tokens)

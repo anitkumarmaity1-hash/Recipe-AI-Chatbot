@@ -1,9 +1,11 @@
-# Variant map used by the stats tool to decide what "contains X" means.
-# Key = base ingredient (a canonical name). Value = more specific canonical
+# Variant map. Key = base ingredient (a canonical name). Value = more specific canonical
 # names that ALSO count as the base ingredient.
+# Used in two places:
+#   - the stats tool (what "contains X" means), at query time
+#   - build_normalized, which stores recipe_ingredient.canonical_base
 # Asking for a variant (e.g. "unsalted butter") matches only that name.
-# Deliberately NOT listed: peanut butter, coconut milk, garlic powder, etc.
-# (different products). Edit freely; names not in the dataset are ignored.
+# Deliberately NOT listed: peanut butter, coconut milk, garlic powder, red onion.
+# Undecided (not listed): pepper / black pepper, flour / all-purpose flour.
 butter:
   - unsalted butter
   - salted butter
@@ -17,3 +19,7 @@ salt:
   - kosher salt
   - sea salt
   - table salt
+cinnamon:
+  - ground cinnamon
+milk:
+  - whole milk

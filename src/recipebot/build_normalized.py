@@ -1,15 +1,19 @@
-"""Day 1, Step 4 (hybrid): build the normalized tables.
+"""Day 1, Step 4 (hybrid) + Step 4b: build the normalized tables.
 
 Run from the project root (after python -m recipebot.build_db):
-    python -m recipebot.build_normalized              # normal run (Stage A is incremental)
-    python -m recipebot.build_normalized --reparse    # throw the parser cache away and parse again
+    python -m recipebot.build_normalized                  # normal run (Stage A is incremental)
+    python -m recipebot.build_normalized --reparse        # throw the parser cache away (slow, ~16 min)
+    python -m recipebot.build_normalized --recount-steps  # recompute the cached step counts
 
 Stage A (slow, resumable): parse every UNIQUE cleaned ingredient line with ingredient-parser-nlp
         and store the raw output in table `ingredient_parse` (a cache, saved every chunk).
-Stage B (fast, repeatable): combine the cache with our dictionary/regex rules to build
-        `recipe_ingredient` and `recipe_stats`. Tuning synonyms only needs Stage B again.
+Step table (computed once, cached): `recipe_steps` holds n_lines and n_steps per recipe.
+        It is only rebuilt when it is missing/incomplete or with --recount-steps.
+Stage B (repeatable): combine the caches with our rules (line filter, descriptors, synonyms,
+        variant map) to build `recipe_ingredient` and `recipe_stats`.
 
 Only derived tables are dropped/recreated. `recipes` is never modified.
+`build_db --force` creates a fresh file, so all derived tables vanish with it.
 """
 from __future__ import annotations
 
@@ -24,9 +28,15 @@ from pathlib import Path
 import pandas as pd
 
 from recipebot import config, db
-from recipebot.normalization.ingredients import IngredientNormalizer, load_synonyms
+from recipebot.normalization.ingredients import (
+    IngredientNormalizer,
+    load_extra_descriptors,
+    load_synonyms,
+)
+from recipebot.normalization.line_filter import DROP, STRIP, LineFilter, load_line_filter
 from recipebot.normalization.parser_layer import (
     ParsedLine,
+    ResolvedLine,
     _import_parser,
     normalize_unit,
     parse_line,
@@ -34,6 +44,7 @@ from recipebot.normalization.parser_layer import (
     warmup,
 )
 from recipebot.normalization.steps import count_lines, count_steps
+from recipebot.tools.stats import load_variants
 
 logger = logging.getLogger(__name__)
 
@@ -57,11 +68,18 @@ CREATE TABLE IF NOT EXISTS ingredient_parse (
     parse_ok        BOOLEAN NOT NULL
 )
 """
+CREATE_STEPS = """
+CREATE TABLE IF NOT EXISTS recipe_steps (
+    row_idx  INTEGER PRIMARY KEY,
+    n_lines  INTEGER NOT NULL,
+    n_steps  INTEGER NOT NULL
+)
+"""
 CREATE_STATS = """
 CREATE TABLE recipe_stats (
     row_idx       INTEGER PRIMARY KEY,
     id            VARCHAR NOT NULL,
-    n_ingredients INTEGER NOT NULL,
+    n_ingredients INTEGER NOT NULL,   -- cleaned ingredient lines minus lines dropped as notes
     n_lines       INTEGER NOT NULL,
     n_steps       INTEGER NOT NULL
 )
@@ -72,8 +90,9 @@ CREATE TABLE recipe_ingredient (
     row_idx          INTEGER NOT NULL,
     position         INTEGER NOT NULL,   -- index of the line in ingredients_clean
     name_index       INTEGER NOT NULL,   -- 0 for the first name on a line ("salt and pepper" has 0 and 1)
-    raw_line         VARCHAR NOT NULL,   -- the CLEANED ingredient line
+    raw_line         VARCHAR NOT NULL,   -- the CLEANED ingredient line (original, even if a prefix was stripped)
     canonical        VARCHAR NOT NULL,
+    canonical_base   VARCHAR NOT NULL,   -- variant map applied: "unsalted butter" -> "butter"
     alternatives     VARCHAR[] NOT NULL, -- "butter or margarine": canonical=butter, alternatives=[margarine]
     quantity         DOUBLE,
     quantity_max     DOUBLE,
@@ -104,6 +123,12 @@ class DerivedStats:
     unparsed_examples: list[str] = field(default_factory=list)
     # per ingredient line occurrence
     line_sources: Counter = field(default_factory=Counter)
+    # Step 4b: occurrences per prefix
+    dropped_by_prefix: Counter = field(default_factory=Counter)
+    stripped_by_prefix: Counter = field(default_factory=Counter)
+    steps_recomputed: bool = False
+    seconds_steps: float = 0.0
+    seconds_total: float = 0.0
 
 
 # ------------------------------------------------------------------ Stage A
@@ -173,6 +198,43 @@ def build_parse_cache(db_path: Path | str, chunk_size: int = CHUNK_SIZE, reparse
     return stats
 
 
+# ------------------------------------------------------------------ Step table
+def ensure_step_table(con, recount: bool = False) -> tuple[bool, float]:
+    """Make sure recipe_steps has one row per recipe. Returns (recomputed, seconds).
+
+    Counting steps runs pysbd on every recipe. It is kept out of the rule-tuning loop:
+    it only runs when the table is missing/incomplete or when recount=True.
+    """
+    if recount:
+        con.execute("DROP TABLE IF EXISTS recipe_steps")
+    con.execute(CREATE_STEPS)
+    n_recipes = con.execute("SELECT count(*) FROM recipes").fetchone()[0]
+    n_have = con.execute("SELECT count(*) FROM recipe_steps").fetchone()[0]
+    if n_have == n_recipes:
+        return False, 0.0
+
+    start = time.time()
+    con.execute("DELETE FROM recipe_steps")
+    rows = con.execute(
+        "SELECT row_idx, instructions_clean FROM recipes ORDER BY row_idx").fetchall()
+    df = pd.DataFrame(
+        [{"row_idx": r, "n_lines": count_lines(
+            t), "n_steps": count_steps(t)} for r, t in rows]
+    )
+    con.register("steps_df", df)
+    try:
+        con.execute(
+            "INSERT INTO recipe_steps SELECT row_idx::INTEGER, n_lines::INTEGER, n_steps::INTEGER "
+            "FROM steps_df"
+        )
+    finally:
+        con.unregister("steps_df")
+    seconds = time.time() - start
+    logger.info("Step counts computed for %s recipes in %.0f s",
+                f"{len(rows):,}", seconds)
+    return True, seconds
+
+
 # ------------------------------------------------------------------ Stage B
 def _flush(con, rows: list[dict]) -> None:
     if not rows:
@@ -183,9 +245,10 @@ def _flush(con, rows: list[dict]) -> None:
         con.execute(
             f"INSERT INTO recipe_ingredient SELECT recipe_id::VARCHAR, row_idx::INTEGER, "
             f"position::INTEGER, name_index::INTEGER, raw_line::VARCHAR, canonical::VARCHAR, "
-            f"alternatives::VARCHAR[], {_num('quantity')}, {_num('quantity_max')}, unit::VARCHAR, "
-            f"preparation::VARCHAR, comment::VARCHAR, {_num('name_confidence')}, "
-            f"canonical_source::VARCHAR, regex_canonical::VARCHAR FROM ing_df"
+            f"canonical_base::VARCHAR, alternatives::VARCHAR[], {_num('quantity')}, "
+            f"{_num('quantity_max')}, unit::VARCHAR, preparation::VARCHAR, comment::VARCHAR, "
+            f"{_num('name_confidence')}, canonical_source::VARCHAR, regex_canonical::VARCHAR "
+            f"FROM ing_df"
         )
     finally:
         con.unregister("ing_df")
@@ -193,12 +256,32 @@ def _flush(con, rows: list[dict]) -> None:
 
 
 def build_recipe_tables(
-    db_path: Path | str, normalizer: IngredientNormalizer, log_every: int = 10_000
+    db_path: Path | str,
+    normalizer: IngredientNormalizer,
+    log_every: int = 10_000,
+    line_filter: LineFilter | None = None,
+    variants: dict[str, list[str]] | None = None,
+    recount_steps: bool = False,
 ) -> DerivedStats:
-    """Build recipe_stats and recipe_ingredient from the parser cache + our rules."""
+    """Build recipe_stats and recipe_ingredient from the caches + our rules.
+
+    line_filter: drops/strips note lines (None = keep every line, as before Step 4b)
+    variants:    base -> [specific forms]; fills recipe_ingredient.canonical_base
+    """
     stats = DerivedStats()
+    line_filter = line_filter or LineFilter()
+    base_of = {v: base for base, vs in (variants or {}).items() for v in vs}
+    started = time.time()
+
     con = db.connect(read_only=False, path=db_path)
     try:
+        stats.steps_recomputed, stats.seconds_steps = ensure_step_table(
+            con, recount_steps)
+        step_rows = {
+            r[0]: (r[1], r[2])
+            for r in con.execute("SELECT row_idx, n_lines, n_steps FROM recipe_steps").fetchall()
+        }
+
         cache: dict[str, ParsedLine] = {}
         for (line, names, conf, qty, qty_max, unit, prep, comment, purpose, ok) in con.execute(
             "SELECT line, names, name_confidence, quantity, quantity_max, unit, preparation, "
@@ -208,7 +291,7 @@ def build_recipe_tables(
                 names), conf, qty, qty_max, unit, prep, comment, purpose, ok)
 
         recipes = con.execute(
-            "SELECT row_idx, id, ingredients_clean, instructions_clean FROM recipes ORDER BY row_idx"
+            "SELECT row_idx, id, ingredients_clean FROM recipes ORDER BY row_idx"
         ).fetchall()
 
         con.execute("DROP TABLE IF EXISTS recipe_ingredient")
@@ -216,23 +299,42 @@ def build_recipe_tables(
         con.execute(CREATE_STATS)
         con.execute(CREATE_INGREDIENT)
 
-        resolved_cache = {}
+        parse_fn = None  # the parser is only imported if a "strip" line needs it
+
+        def plan_for(line: str) -> tuple[str, ParsedLine | None, ResolvedLine | None, str | None]:
+            """Decide once per unique line: (kind, parsed, resolved, prefix)."""
+            nonlocal parse_fn
+            decision = line_filter.classify(line)
+            if decision.action == DROP:
+                return ("drop", None, None, decision.prefix)
+            if decision.action == STRIP:
+                if parse_fn is None:
+                    parse_fn = _import_parser()
+                parsed_rest = parse_line(decision.text, parse_fn)
+                return ("strip", parsed_rest,
+                        resolve_line(decision.text, parsed_rest, normalizer), decision.prefix)
+            parsed = cache.get(line)
+            if parsed is None:
+                raise RuntimeError(
+                    f"Parser cache is missing a line (e.g. {line!r}). Run Stage A first.")
+            return ("keep", parsed, resolve_line(line, parsed, normalizer), None)
+
+        plans: dict[str, tuple] = {}
         stats_rows: list[dict] = []
         ingredient_rows: list[dict] = []
-        for i, (row_idx, rid, ingredients, instructions) in enumerate(recipes, 1):
-            stats_rows.append(
-                {"row_idx": row_idx, "id": rid, "n_ingredients": len(ingredients),
-                 "n_lines": count_lines(instructions), "n_steps": count_steps(instructions)}
-            )
+        for i, (row_idx, rid, ingredients) in enumerate(recipes, 1):
+            n_dropped = 0
             for position, line in enumerate(ingredients):
-                parsed = cache.get(line)
-                if parsed is None:
-                    raise RuntimeError(
-                        f"Parser cache is missing a line (e.g. {line!r}). Run Stage A first.")
-                resolved = resolved_cache.get(line)
-                if resolved is None:
-                    resolved = resolved_cache[line] = resolve_line(
-                        line, parsed, normalizer)
+                plan = plans.get(line)
+                if plan is None:
+                    plan = plans[line] = plan_for(line)
+                kind, parsed, resolved, prefix = plan
+                if kind == "drop":
+                    n_dropped += 1
+                    stats.dropped_by_prefix[prefix] += 1
+                    continue
+                if kind == "strip":
+                    stats.stripped_by_prefix[prefix] += 1
                 stats.line_sources[resolved.source] += 1
                 if not resolved.canonicals:
                     stats.unparsed_count += 1
@@ -244,6 +346,7 @@ def build_recipe_tables(
                         {
                             "recipe_id": rid, "row_idx": row_idx, "position": position,
                             "name_index": name_index, "raw_line": line, "canonical": canonical,
+                            "canonical_base": base_of.get(canonical, canonical),
                             "alternatives": resolved.alternatives, "quantity": parsed.quantity,
                             "quantity_max": parsed.quantity_max, "unit": normalize_unit(parsed.unit),
                             "preparation": parsed.preparation, "comment": parsed.comment,
@@ -252,6 +355,11 @@ def build_recipe_tables(
                             "regex_canonical": resolved.regex_canonical,
                         }
                     )
+            n_lines, n_steps = step_rows[row_idx]
+            stats_rows.append(
+                {"row_idx": row_idx, "id": rid, "n_ingredients": len(ingredients) - n_dropped,
+                 "n_lines": n_lines, "n_steps": n_steps}
+            )
             if len(ingredient_rows) >= FLUSH_ROWS:
                 _flush(con, ingredient_rows)
             if i % log_every == 0:
@@ -277,6 +385,7 @@ def build_recipe_tables(
                 f"CHECK FAILED: recipe_stats has {n_stats} rows, recipes has {n_recipes}")
     finally:
         con.close()
+    stats.seconds_total = time.time() - started
     return stats
 
 
@@ -315,6 +424,10 @@ def render_report(db_path: Path | str, stats: DerivedStats) -> str:
             "SELECT count(*) FROM recipe_ingredient").fetchone()[0]
         n_distinct = con.execute(
             "SELECT count(DISTINCT canonical) FROM recipe_ingredient").fetchone()[0]
+        n_distinct_base = con.execute(
+            "SELECT count(DISTINCT canonical_base) FROM recipe_ingredient").fetchone()[0]
+        n_base_diff = con.execute(
+            "SELECT count(*) FROM recipe_ingredient WHERE canonical_base <> canonical").fetchone()[0]
         n_split = con.execute(
             "SELECT count(*) FILTER (WHERE name_index > 0) FROM recipe_ingredient").fetchone()[0]
         n_alt = con.execute(
@@ -363,14 +476,29 @@ def render_report(db_path: Path | str, stats: DerivedStats) -> str:
 
     src = stats.line_sources
     out = [
-        "# Normalization report (Step 4, hybrid)", "", f"Recipes processed: {n_rec:,}", "",
-        "## Steps (rule: one sentence = one step, pysbd on instructions_clean)", "",
+        "# Normalization report (Step 4 hybrid + Step 4b)", "", f"Recipes processed: {n_rec:,}", "",
+        "## Stage B timing (this run)", "",
+        f"- step counts recomputed this run: {stats.steps_recomputed} "
+        f"({stats.seconds_steps:.0f} s; 0 s means the cached recipe_steps table was reused)",
+        f"- Stage B total: {stats.seconds_total:.0f} s",
+        "", "## Steps (rule: one sentence = one step, pysbd on instructions_clean)", "",
         "| Metric | Value |", "|---|---:|",
         f"| n_steps min / median / mean / max | {s_min} / {s_med} / {s_mean:.2f} / {s_max} |",
         f"| recipes with 0 steps | {s_zero:,} |",
         f"| n_lines median / mean / max | {l_med} / {l_mean:.2f} / {l_max} |",
         f"| recipes with 1 or fewer non-empty lines | {s_one_line:,} |",
-        f"| n_ingredients min / median / mean / max | {i_min} / {i_med} / {i_mean:.2f} / {i_max} |",
+        f"| n_ingredients (lines minus dropped notes) min / median / mean / max | "
+        f"{i_min} / {i_med} / {i_mean:.2f} / {i_max} |",
+        "", "## Line filter (non-ingredient lines)", "",
+        f"- lines dropped (occurrences): {sum(stats.dropped_by_prefix.values()):,}",
+        f"- lines with prefix stripped (occurrences): {sum(stats.stripped_by_prefix.values()):,}",
+        "", "| Prefix | Action | Occurrences |", "|---|---|---:|",
+    ]
+    out += [f"| {_md(p)} | drop | {n:,} |" for p,
+            n in stats.dropped_by_prefix.most_common()]
+    out += [f"| {_md(p)} | strip | {n:,} |" for p,
+            n in stats.stripped_by_prefix.most_common()]
+    out += [
         "", "## Parser stage (table ingredient_parse)", "", "| Metric | Value |", "|---|---:|",
         f"| unique cleaned lines in cache | {p_total:,} |",
         f"| parser failures (exception) | {p_fail:,} |",
@@ -387,6 +515,8 @@ def render_report(db_path: Path | str, stats: DerivedStats) -> str:
         f"| extra rows from multi-name lines (\"salt and pepper\") | {n_split:,} |",
         f"| rows with alternatives (\"butter or margarine\") | {n_alt:,} |",
         f"| distinct canonical names | {n_distinct:,} |",
+        f"| distinct canonical_base names (after the variant map) | {n_distinct_base:,} |",
+        f"| rows where canonical_base differs from canonical | {n_base_diff:,} |",
         f"| recipes with no canonical ingredient at all | {no_canon:,} |",
         f"| first-name rows with parser confidence < {NAME_CONFIDENCE_THRESHOLD} | {low_conf:,} |",
         f"| first-name rows with a quantity | {q_with:,} of {q_total:,} |",
@@ -417,14 +547,23 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Build recipe_ingredient and recipe_stats.")
     parser.add_argument("--reparse", action="store_true",
-                        help="drop the parser cache and parse every line again")
+                        help="drop the parser cache and parse every line again (slow)")
+    parser.add_argument("--recount-steps", action="store_true",
+                        help="recompute the cached step counts (recipe_steps)")
     args = parser.parse_args(argv)
 
     config.setup_logging()
     build_parse_cache(config.DB_PATH, reparse=args.reparse)
-    normalizer = IngredientNormalizer(load_synonyms())
-    logger.info("Loaded %d synonyms", len(normalizer.synonyms))
-    stats = build_recipe_tables(config.DB_PATH, normalizer)
+    normalizer = IngredientNormalizer(
+        load_synonyms(), load_extra_descriptors())
+    line_filter = load_line_filter()
+    variants = load_variants()
+    logger.info("Loaded %d synonyms, %d extra descriptors, %d variant bases",
+                len(normalizer.synonyms), len(normalizer.descriptors), len(variants))
+    stats = build_recipe_tables(
+        config.DB_PATH, normalizer, line_filter=line_filter, variants=variants,
+        recount_steps=args.recount_steps,
+    )
     report = render_report(config.DB_PATH, stats)
     print(report)
     path = config.PROJECT_ROOT / "docs" / "NORMALIZATION_REPORT.md"

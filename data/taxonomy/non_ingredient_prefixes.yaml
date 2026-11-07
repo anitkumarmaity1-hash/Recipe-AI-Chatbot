@@ -1,0 +1,29 @@
+# Lines in an ingredient list that start with one of these prefixes + ":" are not
+# ordinary ingredient lines. Matching is case-insensitive and ignores leading "*".
+#
+# drop:  the whole line is ignored in recipe_ingredient (equipment, notes, serving ideas).
+#        The line stays in recipes.ingredients_clean and in allergen checks.
+# strip: the prefix is removed and the rest is parsed as a normal ingredient line
+#        ("Garnish: 1 lemon twist" -> "1 lemon twist").
+drop:
+  - special equipment
+  - equipment
+  - ingredient info
+  - test-kitchen tip
+  - note
+  - notes
+  - serving suggestion
+  - serving suggestions
+  - suggested dippers
+  - accompaniment
+  - accompaniments
+  - accompaniment if desired
+strip:
+  - garnish
+  - garnishes
+  - optional garnish
+  - optional garnishes
+  - optional
+  - toppings
+  - suggested toppings
+  - for serving

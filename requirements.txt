@@ -7,3 +7,5 @@ python-dotenv
 pysbd
 pytest
 ingredient-parser-nlp
+faiss-cpu
+sentence-transformers

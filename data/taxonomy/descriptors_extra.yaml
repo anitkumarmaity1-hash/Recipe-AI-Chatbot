@@ -1,0 +1,18 @@
+# Extra descriptor words removed from canonical names (added to the built-in
+# DESCRIPTORS set in normalization/ingredients.py). Hyphenated words count as one
+# token. The raw line is always kept, so nothing is lost for display.
+# Deliberately NOT here: light, plain, dried, cold, unsalted (they change the product
+# or are handled by ingredient_variants.yaml).
+descriptors:
+  - homemade
+  - store-bought
+  - storebought
+  - small-diced
+  - freshly-squeezed
+  - freshly-ground
+  - good-quality
+  - high-quality
+  - organic
+  - farm-fresh
+  - reduced-sodium
+  - low-sodium
