@@ -1,0 +1,8 @@
+duckdb
+pandas
+pyarrow
+rank_bm25
+pyyaml
+python-dotenv
+pysbd
+pytest

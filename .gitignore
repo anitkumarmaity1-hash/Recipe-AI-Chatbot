@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+
+# Secrets
+.env
+
+# Large generated or downloaded data (rebuilt by scripts)
+data/raw/*
+data/db/*
+data/index/*
+!data/raw/.gitkeep
+!data/db/.gitkeep
+!data/index/.gitkeep
+
+# Fine-tuning outputs
+finetune/adapters/
+
+# Editor / OS
+.vscode/
+.DS_Store
+Thumbs.db
