@@ -1,0 +1,19 @@
+# Variant map used by the stats tool to decide what "contains X" means.
+# Key = base ingredient (a canonical name). Value = more specific canonical
+# names that ALSO count as the base ingredient.
+# Asking for a variant (e.g. "unsalted butter") matches only that name.
+# Deliberately NOT listed: peanut butter, coconut milk, garlic powder, etc.
+# (different products). Edit freely; names not in the dataset are ignored.
+butter:
+  - unsalted butter
+  - salted butter
+olive oil:
+  - extra-virgin olive oil
+  - extra virgin olive oil
+sugar:
+  - white sugar
+  - granulated sugar
+salt:
+  - kosher salt
+  - sea salt
+  - table salt
