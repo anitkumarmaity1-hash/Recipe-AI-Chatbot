@@ -1,0 +1,31 @@
+# Allergen rules used for HARD constraints (e.g. "no dairy").
+# Matching is on whole words/phrases (plural -s/-es allowed) in the FULL ingredient line.
+# "exceptions" are phrases removed before matching, so "coconut milk" is not dairy.
+# Known limits: hidden ingredients (e.g. milk in chocolate chips) are NOT detected, and the
+# gluten list is a rough proxy. Never present a result as medically safe.
+allergens:
+  dairy:
+    include: [milk, cream, butter, cheese, yogurt, yoghurt, ghee, buttermilk, whey, casein,
+              custard, ice cream, sour cream, half and half, parmesan, mozzarella, cheddar,
+              ricotta, feta, mascarpone, condensed milk, evaporated milk, paneer, kefir, lactose]
+    exceptions: [coconut milk, almond milk, soy milk, soya milk, oat milk, rice milk, cashew milk,
+                 hemp milk, coconut cream, cream of tartar, cream of coconut, cocoa butter,
+                 peanut butter, almond butter, cashew butter, nut butter, sunflower seed butter,
+                 apple butter, butter lettuce, butter bean]
+  egg:
+    include: [egg, egg white, egg yolk, eggnog, mayonnaise, mayo, meringue]
+    exceptions: [egg replacer, vegan egg, flax egg, chia egg]
+  peanut:
+    include: [peanut, groundnut]
+    exceptions: []
+  tree_nut:
+    # Generic "nut" is included on purpose (conservative); it also flags pine nuts.
+    include: [almond, walnut, pecan, cashew, pistachio, hazelnut, macadamia, brazil nut,
+              chestnut, marzipan, praline, nut]
+    exceptions: []
+  gluten:
+    include: [wheat, flour, bread, breadcrumb, pasta, spaghetti, macaroni, penne, fettuccine,
+              lasagna, noodle, couscous, barley, rye, semolina, bulgur, seitan, soy sauce,
+              beer, cracker, crouton, pita, bagel]
+    exceptions: [rice flour, almond flour, coconut flour, chickpea flour, buckwheat flour,
+                 potato flour, rice noodle, rice pasta, corn pasta]

@@ -6,3 +6,4 @@ pyyaml
 python-dotenv
 pysbd
 pytest
+ingredient-parser-nlp

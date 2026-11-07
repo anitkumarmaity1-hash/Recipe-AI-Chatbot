@@ -1,0 +1,24 @@
+# Maps a normalized ingredient name (after unit/descriptor removal and singularizing)
+# to its canonical name. Edit freely: this file is meant to be changed in the interview.
+synonyms:
+  scallion: green onion
+  spring onion: green onion
+  aubergine: eggplant
+  courgette: zucchini
+  capsicum: bell pepper
+  rocket: arugula
+  prawn: shrimp
+  garbanzo: chickpea
+  garbanzo bean: chickpea
+  coriander leaf: cilantro
+  confectioners sugar: powdered sugar
+  "confectioner's sugar": powdered sugar
+  icing sugar: powdered sugar
+  caster sugar: superfine sugar
+  garlic clove: garlic
+  celery stalk: celery
+  plain flour: all-purpose flour
+  all purpose flour: all-purpose flour
+  bicarbonate of soda: baking soda
+  double cream: heavy cream
+  heavy whipping cream: heavy cream
