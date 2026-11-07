@@ -13,3 +13,8 @@ ranking and validation are computed deterministically from the data.
     pip install -r requirements.txt
     pip install -e .
     pytest
+
+## Data
+
+    python scripts/download_data.py     # downloads the 3 raw JSON files into data/raw/
+    python -m recipebot.eda             # prints and saves docs/EDA_REPORT.md
