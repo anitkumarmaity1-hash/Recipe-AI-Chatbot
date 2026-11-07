@@ -1,6 +1,11 @@
-# Normalization report (Step 4, hybrid)
+# Normalization report (Step 4 hybrid + Step 4b)
 
 Recipes processed: 121,896
+
+## Stage B timing (this run)
+
+- step counts recomputed this run: False (0 s; 0 s means the cached recipe_steps table was reused)
+- Stage B total: 23 s
 
 ## Steps (rule: one sentence = one step, pysbd on instructions_clean)
 
@@ -10,7 +15,34 @@ Recipes processed: 121,896
 | recipes with 0 steps | 48 |
 | n_lines median / mean / max | 4.0 / 3.98 / 71 |
 | recipes with 1 or fewer non-empty lines | 20,367 |
-| n_ingredients min / median / mean / max | 1 / 9.0 / 10.36 / 82 |
+| n_ingredients (lines minus dropped notes) min / median / mean / max | 0 / 9.0 / 10.33 / 82 |
+
+## Line filter (non-ingredient lines)
+
+- lines dropped (occurrences): 3,744
+- lines with prefix stripped (occurrences): 860
+
+| Prefix | Action | Occurrences |
+|---|---|---:|
+| special equipment | drop | 1,715 |
+| accompaniment | drop | 704 |
+| equipment | drop | 414 |
+| ingredient info | drop | 294 |
+| serving suggestion | drop | 266 |
+| serving suggestions | drop | 175 |
+| accompaniments | drop | 137 |
+| test-kitchen tip | drop | 12 |
+| accompaniment if desired | drop | 11 |
+| note | drop | 10 |
+| suggested dippers | drop | 6 |
+| garnish | strip | 729 |
+| optional | strip | 34 |
+| garnishes | strip | 23 |
+| suggested toppings | strip | 19 |
+| toppings | strip | 17 |
+| optional garnishes | strip | 13 |
+| for serving | strip | 13 |
+| optional garnish | strip | 12 |
 
 ## Parser stage (table ingredient_parse)
 
@@ -28,16 +60,18 @@ No-name examples: `8 cups loosely packed, torn, washed, and spun dry romaine let
 
 | Metric | Value |
 |---|---:|
-| ingredient line occurrences resolved by parser | 1,262,223 |
+| ingredient line occurrences resolved by parser | 1,258,477 |
 | resolved by regex fallback | 289 |
-| no canonical name (skipped) | 194 |
-| rows in recipe_ingredient | 1,302,125 |
-| extra rows from multi-name lines ("salt and pepper") | 39,613 |
-| rows with alternatives ("butter or margarine") | 30,872 |
-| distinct canonical names | 62,761 |
-| recipes with no canonical ingredient at all | 4 |
-| first-name rows with parser confidence < 0.9 | 59,996 |
-| first-name rows with a quantity | 1,150,060 of 1,262,512 |
+| no canonical name (skipped) | 196 |
+| rows in recipe_ingredient | 1,295,352 |
+| extra rows from multi-name lines ("salt and pepper") | 36,586 |
+| rows with alternatives ("butter or margarine") | 30,086 |
+| distinct canonical names | 60,982 |
+| distinct canonical_base names (after the variant map) | 60,972 |
+| rows where canonical_base differs from canonical | 85,581 |
+| recipes with no canonical ingredient at all | 5 |
+| first-name rows with parser confidence < 0.9 | 57,488 |
+| first-name rows with a quantity | 1,149,441 of 1,258,766 |
 
 ### Skipped line examples
 
@@ -57,12 +91,11 @@ No-name examples: `8 cups loosely packed, torn, washed, and spun dry romaine let
 - `peeled`
 - `(from 1 or 2 oranges)`
 
-### Parser vs regex: 73,804 of 416,528 distinct lines get a different canonical name
+### Parser vs regex: 70,893 of 413,634 distinct lines get a different canonical name
 
 | Cleaned line | Parser+rules (used) | Regex only |
 |---|---|---|
 | Fresh lime wedges and cucumber slices | lime wedge | lime wedges and cucumber slice |
-| Special equipment: 9-inch-diameter cake pan with 2-inch-high sides | special equipment | special equipment inch-diameter cake pan with inch-high side |
 | 1 cup medium- or long-grain rice | medium-grain rice |  |
 | 3 tablespoons freshly squeezed lime juice (2 limes) | lime juice | squeezed lime juice |
 | 1 small tube white decorating icing | white decorating icing | tube white decorating icing |
@@ -76,11 +109,10 @@ No-name examples: `8 cups loosely packed, torn, washed, and spun dry romaine let
 | Thinly sliced avocado and salmon roe, for garnish, optional | avocado | avocado and salmon roe |
 | 8 hot or sweet pickled cherry peppers | hot pickled cherry pepper | hot |
 | Butter and flour for preparing baking sheet and foil | butter | butter and flour preparing baking sheet and foil |
-| 1/4 cup homemade or store-bought reduced-sodium chicken stock | homemade reduced-sodium chicken stock | homemade |
+| 1/4 cup homemade or store-bought reduced-sodium chicken stock | chicken stock |  |
 | Twist of orange zest | orange zest | twist of orange zest |
 | 3/4 cup crumbled feta cheese | feta cheese | crumbled feta cheese |
 | 2 medium red or yellow bell peppers, sliced thin | red bell pepper | red |
-| Serving Suggestion: Tartar sauce | suggestion | suggestion tartar sauce |
 | 1/2 cup manteca (lard), melted | manteca lard | manteca |
 | 1 tablespoon freshly ground or coarsely ground black pepper | black pepper | ground |
 | Freshly picked flat-leaf parsley, for garnish | flat-leaf parsley | picked flat-leaf parsley |
@@ -89,8 +121,10 @@ No-name examples: `8 cups loosely packed, torn, washed, and spun dry romaine let
 | 2 pounds skinless, boneless chicken breasts, cut into 1 1/2-inch pieces | chicken breast |  |
 | 1/4 pound Cabrales or other blue cheese, crumbled | cabrales cheese | cabrale |
 | pinch of very finely chopped fresh garlic | garlic | very garlic |
-| Special equipment: an electric pizzelle maker; a 5 1/2-inch cone-shaped pizzelle mold | special equipment | special equipment electric pizzelle maker inch cone-shaped pizzelle mold |
 | 2 thin salmon fillets | salmon fillet | thin salmon fillet |
+| 1 cup thinly sliced unpeeled fresh ginger (1/4 lb; from two 5-inch-long pieces) | ginger | unpeeled ginger |
+| 3 tablespoons white balsamic or rice vinegar | white balsamic vinegar | white balsamic |
+| Pinch saffron dissolved in 2 to 3 tablespoons hot fish stock | saffron | saffron dissolved in tablespoons hot fish stock |
 
 ### Lowest-confidence parser names
 
@@ -105,81 +139,81 @@ No-name examples: `8 cups loosely packed, torn, washed, and spun dry romaine let
 | 24 pesticide free rose petals, pink, red, yellow or a combination | pesticide free rose petal | 0.000 |
 | Specialty savory sprouts such as daikon, corn, lentil or fenugreek and nasturtium or other edible flower petals, as garnish | specialty savory sprout | 0.000 |
 | Or 1 large round or oval loaf, pain de ménage or miche; pain boulot | loaf | 0.000 |
+| 4 cups small-diced zucchini (green/yellow) (5 small zucchini) | zucchini | 0.000 |
 | 4 cups small-diced zucchini (green/yellow) (5 small zucchini) | yellow | 0.000 |
-| 4 cups small-diced zucchini (green/yellow) (5 small zucchini) | small-diced zucchini | 0.000 |
 | Food coloring, your choices on tan, flesh, red, blue, green, yellow, purple, pink, orange, red, etc. | food coloring | 0.000 |
 | Food coloring, your choices on tan, flesh, red, blue, green, yellow, purple, pink, orange, red, etc. | blue | 0.000 |
 | 4 apples, Red or Golden Delicious or, 2 of each | apple | 0.000 |
 | 4 dozen small hard-shelled (littleneck) clams, well scrubbed | littleneck | 0.001 |
 | 4 dozen small hard-shelled (littleneck) clams, well scrubbed | clam | 0.001 |
 | 1 head soft lettuce (Boston, Bibb or mixed baby greens) | soft lettuce | 0.001 |
-| Special equipment: a 1/2-ounce cookie or ice cream scoop | special equipment | 0.001 |
 | 3 tablespoons chopped fresh or 1 tablespoon dried oregano, divided | oregano | 0.001 |
 | 2 large onions, white, yellow, or red, thinly sliced | onion | 0.001 |
+| 1 Fresno chile or red jalapeño, with seeds, finely chopped | fresno chile red jalape o | 0.002 |
 
 ### Most common units (normalized)
 
 | Unit | Rows |
 |---|---:|
-| cup | 345,627 |
-| tablespoon | 187,783 |
-| teaspoon | 180,626 |
-| pound | 42,990 |
-| ounce | 36,757 |
+| cup | 345,555 |
+| tablespoon | 187,779 |
+| teaspoon | 180,625 |
+| pound | 42,980 |
+| ounce | 36,752 |
 | clove | 24,453 |
-| can | 21,388 |
-| package | 14,344 |
+| can | 21,387 |
+| package | 14,343 |
 | pinch | 11,127 |
-| slice | 8,808 |
-| sprig | 6,267 |
+| slice | 8,819 |
+| sprig | 6,298 |
 | bunch | 5,691 |
 | stick | 4,789 |
 | stalk | 3,479 |
-| quart | 3,434 |
+| quart | 3,397 |
 
 ### Top 40 canonical names (number of recipes)
 
 | Canonical | Recipes |
 |---|---:|
 | salt | 47,624 |
-| garlic | 32,092 |
+| garlic | 32,093 |
 | black pepper | 31,106 |
-| egg | 25,737 |
-| all-purpose flour | 20,804 |
-| olive oil | 20,414 |
-| butter | 20,278 |
-| onion | 19,256 |
+| egg | 25,766 |
+| all-purpose flour | 20,809 |
+| olive oil | 20,422 |
+| butter | 20,279 |
+| onion | 19,264 |
 | kosher salt | 18,753 |
-| sugar | 17,560 |
-| unsalted butter | 16,062 |
+| sugar | 17,567 |
+| unsalted butter | 16,802 |
 | water | 15,925 |
-| pepper | 12,468 |
+| pepper | 12,474 |
 | vegetable oil | 11,924 |
-| lemon juice | 11,136 |
-| extra-virgin olive oil | 10,633 |
+| extra-virgin olive oil | 11,796 |
+| lemon juice | 11,151 |
 | white sugar | 9,987 |
-| vanilla extract | 9,722 |
-| milk | 9,408 |
+| vanilla extract | 9,730 |
+| milk | 9,410 |
 | green onion | 8,724 |
-| heavy cream | 8,580 |
-| baking powder | 7,789 |
-| carrot | 7,604 |
-| ground cinnamon | 7,591 |
-| lemon | 7,307 |
-| brown sugar | 6,399 |
+| heavy cream | 8,584 |
+| baking powder | 7,791 |
+| carrot | 7,623 |
+| ground cinnamon | 7,592 |
+| lemon | 7,320 |
+| brown sugar | 6,400 |
 | baking soda | 6,236 |
-| powdered sugar | 6,232 |
-| celery | 6,197 |
-| red onion | 6,100 |
-| tomato | 6,010 |
-| honey | 5,913 |
+| powdered sugar | 6,233 |
+| celery | 6,211 |
+| red onion | 6,118 |
+| tomato | 6,014 |
+| honey | 5,917 |
 | parsley | 5,849 |
 | shallot | 5,718 |
-| cilantro | 5,339 |
-| sour cream | 5,012 |
-| ginger | 4,732 |
-| lime juice | 4,599 |
-| egg yolk | 4,598 |
+| cilantro | 5,340 |
+| sour cream | 4,984 |
+| ginger | 4,734 |
+| egg yolk | 4,602 |
+| lime juice | 4,602 |
 | thyme | 4,590 |
 
 ### Deterministic sample: cleaned line -> canonical

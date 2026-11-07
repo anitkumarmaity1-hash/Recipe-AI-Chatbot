@@ -22,6 +22,7 @@ INDEX_DIR: Path = config.INDEX_DIR
 BM25_PATH: Path = INDEX_DIR / "bm25.pkl"
 FAISS_PATH: Path = INDEX_DIR / "recipes.faiss"
 EMB_META_PATH: Path = INDEX_DIR / "embeddings_meta.json"
+ALLERGEN_FLAGS_PATH: Path = INDEX_DIR / "allergen_flags.npz"   # NEW: cache, Step 7
 
 # ---- tunable settings (edit here; rebuild the index afterwards) ---------
 EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
@@ -34,6 +35,12 @@ TEXT_FORMAT_VERSION = "title+ingredients-v1"
 BM25_K1 = 1.5
 BM25_B = 0.75
 TOKENIZER_VERSION = "v1"
+
+# NEW: hybrid retrieval (Step 7). Change a value here and rerun; no rebuild needed.
+RRF_K = 60            # NEW: RRF constant from the original paper; larger = flatter fusion
+BM25_WEIGHT = 1.0     # NEW: weight of the lexical ranking inside RRF
+SEMANTIC_WEIGHT = 1.0  # NEW: weight of the embedding ranking inside RRF
+POOL_SIZE = 200       # NEW: candidates kept from EACH retriever before fusion
 
 STOPWORDS = frozenset(
     {"a", "an", "and", "or", "the", "with", "of", "in", "for", "to", "on",

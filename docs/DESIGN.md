@@ -37,3 +37,16 @@
 ## 6. Open items
 - Tune rules from the Step 4 report (top names, parser-vs-regex disagreements, low-confidence names, skipped lines).
 - Decide how "contains X" is defined for statistics answers (canonical match vs word match) after reviewing the report.
+
+## 7. Hybrid retrieval (Step 7)
+- **Order of operations:** hard constraints first (a boolean "allowed" mask over `row_idx`), then BM25 and FAISS rankings restricted to allowed recipes, then Reciprocal Rank Fusion. A forbidden recipe can never be ranked, so a constraint is never "relaxed by accident".
+- **RRF:** `score(d) = sum over rankings of weight / (k + rank)`, rank starting at 1, `k = 60`, equal weights, 200 candidates per retriever. All four values are in `src/recipebot/retrieval/common.py` and are untuned.
+- **Why RRF:** BM25 scores (about 5 to 15) and cosine similarities (0 to 1) are on different scales; RRF uses only ranks, so no score normalisation is needed.
+- **Constraint sources:** SQL over `recipe_stats` / `recipe_ingredient` (required ingredients, excluded ingredients, maximum steps; same "contains" definition as the statistics tool) and allergen categories checked on the full cleaned ingredient line.
+- **Allergen flags** are computed once per recipe in Python and cached in `data/index/allergen_flags.npz`; the cache stores the recipe-ID fingerprint and a hash of `allergens.yaml`, so a changed database or taxonomy triggers a rescan.
+- **Maximum steps:** a recipe with 0 steps (no usable instructions) is not eligible for a maximum-steps constraint, because its length is unknown.
+- **Semantic search with a mask:** the FAISS index is exact (`IndexFlatIP`), so we search all vectors, drop forbidden ones and keep the first 200. Simple, and it cannot lose an allowed recipe when the constraint is restrictive.
+- **Negation:** neither retriever understands "without eggs". The understanding layer (Step 8) must turn it into a constraint; the query text sent to the retrievers is the dish only.
+- **Unknown ingredient in a constraint** raises `UnknownIngredientError` with suggestions; it is never ignored silently.
+- **Independent verification:** `HybridRetriever.verify()` re-checks returned recipes without using the mask (allergens line by line, steps and ingredients from the database). Tests assert it returns no violations; the output guard will reuse it.
+- **Limits:** allergen detection is a text check (hidden ingredients are not found); equal RRF weights and `k = 60` are defaults, not tuned; no evaluation of retrieval quality yet (planned with the golden set, Step 14).

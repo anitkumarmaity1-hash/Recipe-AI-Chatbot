@@ -4,7 +4,7 @@ A grounded conversational recipe assistant over the Recipe Box dataset (~125k re
 The LLM only interprets questions and words answers; all facts, counts, filtering,
 ranking and validation are computed deterministically from the data.
 
-> Work in progress. Full setup, usage, evaluation and design notes will be added as the project is built.
+> Work in progress. The LLM layer, agent loop, matching, substitution and UI are not built yet.
 
 ## Quick start (Windows PowerShell)
 
@@ -14,7 +14,19 @@ ranking and validation are computed deterministically from the data.
     pip install -e .
     pytest
 
-## Data
+## Build the data (run once, from the project root, venv active)
 
-    python scripts/download_data.py     # downloads the 3 raw JSON files into data/raw/
-    python -m recipebot.eda             # prints and saves docs/EDA_REPORT.md
+    python scripts/download_data.py            # 3 raw JSON files into data/raw/
+    python -m recipebot.build_db               # DuckDB: recipes + recipes_excluded (about 15 s)
+    python -m recipebot.build_normalized       # parser cache + recipe_ingredient + recipe_stats (first run about 25 min)
+    python -m recipebot.build_indexes bm25     # BM25 index (seconds)
+    python -m recipebot.build_indexes embeddings   # MiniLM vectors + FAISS (slow, resumable)
+
+## Try it
+
+    python -m recipebot.tools.stats count --all-of garlic onion
+    python -m recipebot.retrieval.hybrid "penne pasta" --exclude-allergen dairy -k 5
+    python -m recipebot.retrieval.hybrid "banana bread" --exclude egg --max-steps 8
+
+The first query with `--exclude-allergen` scans all ingredient lines once and caches the result in `data/index/allergen_flags.npz`.
+Details of every design decision: `docs/DESIGN.md`. AI tools used: `AI_USAGE.md`.

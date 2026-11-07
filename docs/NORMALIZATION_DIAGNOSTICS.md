@@ -1,6 +1,6 @@
 # Normalization diagnostics (Step 4b-1)
 
-Generated: 2026-11-08T00:49:03
+Generated: 2026-11-08T01:23:08
 
 ## 1. Recipes with 0 steps
 
@@ -64,6 +64,7 @@ Brunswick Stew recipes (full cleaned instructions):
 
 | id | title | ingredient lines |
 |---|---|---|
+| epi:KJ.dr1VHkKIiGvHArDT0hfqbjjEe.ha | To Roast Fresh Chestnuts  | Special equipment: a chestnut knife and protective gloves |
 | fn:9qlI6nIVRMeuWfQSX4EZX3eyHNr8oZq | Almond and Sugar Powder | 6 ounces, or 1 cup plus 2 tablespoons, blanched or raw almonds // 6 ounces, or 1 1/4 cups plus 3 tablespoons, confectioners' sugar |
 | fn:6AdCFCZR4cr1NzOtloWzWuOmDewvFGG | Title | 1 cup |
 | fn:6RFXdT0/33sy7kMqbXAQTT2k4ElYQfG | prodtest | 1 |
@@ -73,85 +74,85 @@ Brunswick Stew recipes (full cleaned instructions):
 
 | prefix | lines | example canonical | example line |
 |---|---|---|---|
-| special equipment | 1693 | food mill | SPECIAL EQUIPMENT: Eight 6-ounce aluminum tins |
 | garnish | 728 | almond | Garnish: 1 (1 1/2-inch-long) lemon twist |
-| accompaniment | 703 | accompaniment | Accompaniment: "epi:recipeLink id="238426">honeyed red-onion confit |
-| equipment | 414 | deep skillet | Equipment: 1 (9- by 5- by 3-inch) loaf pan; stand mixer fitted with paddle attachment; 1 t... |
-| ingredient info | 284 | ingredient info | Ingredient Info: All-butter puff pastry is available frozen at Whole Foods markets. One 14... |
-| serving suggestion | 265 | pastry | Serving Suggestion: 1 1/2 cups reduced-fat vanilla ice cream or nonfat frozen vanilla yogu... |
-| serving suggestions | 175 | piling the relish and the chicken in warm pita is fun way | Serving Suggestions: Asparagus with Prosciutto |
-| accompaniments | 137 | accompaniment | Accompaniments: 1/2-inch cubes of California avocado; chopped fresh cilantro; tortilla chi... |
 | optional | 34 | almond | Optional: 1 jalapeno, chopped |
 | garnishes | 23 | arugula | Garnishes: Pickled cauliflower on a skewer, avocado slice on a skewer or a long strip of b... |
-| suggested toppings | 19 | suggested topping | Suggested toppings: 1 cup lightly whipped and chilled creme fraiche, sliced jalapenos, fre... |
+| suggested toppings | 19 | almond | Suggested toppings: 1 cup lightly whipped and chilled creme fraiche, sliced jalapenos, fre... |
+| toppings | 17 | apple | Toppings: 1/2 chopped apple, chopped walnuts, pure maple syrup |
 | 1 teaspoon hot sauce (recommended | 17 | hot sauce | 1 teaspoon hot sauce (recommended: Frank's Red Hot) |
-| toppings | 17 | bibb lettuce | Toppings: 1/2 chopped apple, chopped walnuts, pure maple syrup |
 | 2 tablespoons hot sauce (recommended | 15 | hot sauce | 2 tablespoons hot sauce (recommended: Frank's Hot Sauce) |
-| for serving | 13 | assorted pita chip | For serving: Corn tortillas, black bread, or cucumber slices, as desired. |
-| optional garnishes | 13 | caramel sauce | Optional garnishes: Fresh lime slices |
 | 1/2 teaspoon hot sauce (recommended | 13 | hot sauce | 1/2 teaspoon hot sauce (recommended: Frank's Red Hot) |
-| 1/4 cup orange liqueur (recommended | 12 | orange liqueur | 1/4 cup orange liqueur (recommended: Cointreau or Grand Marnier) |
+| optional garnishes | 13 | caramel sauce | Optional garnishes: Fresh lime slices |
+| for serving | 13 | any combination of bread stick | For serving: Corn tortillas, black bread, or cucumber slices, as desired. |
 | hot sauce (recommended | 12 | hot sauce | Hot sauce (recommended: Crystal's) |
+| 1/4 cup orange liqueur (recommended | 12 | orange liqueur | 1/4 cup orange liqueur (recommended: Cointreau or Grand Marnier) |
 | optional garnish | 12 | blackberry | Optional garnish: 1/2 cup (2 1/2 ounces) pomegranate seeds |
 | 1 tablespoon hot sauce (recommended | 11 | hot sauce | 1 tablespoon hot sauce (recommended: Frank's Red Hot) |
-| accompaniment if desired | 11 | accompaniment | Accompaniment if desired: Apple and Celery Salad |
-| test-kitchen tip | 11 | test-kitchen tip | Test-Kitchen Tip: To release the most flavor from the lemongrass stalk, it's important to ... |
-| special equipment  | 11 | special equipment | Special equipment : a 1- to 1 1/2-quart teapot |
-| 1/4 cup sugar substitute (recommended | 10 | sugar substitute | 1/4 cup sugar substitute (recommended: Splenda) |
 | 1/2 cup sugar substitute (recommended | 10 | sugar substitute | 1/2 cup sugar substitute (recommended: Splenda) |
-| **ingredient info | 10 | agave syrup nectar | **Ingredient Info:**Semolina flour (pasta flour) is available at better supermarkets and a... |
+| 1/4 cup sugar substitute (recommended | 10 | sugar substitute | 1/4 cup sugar substitute (recommended: Splenda) |
 | 2 teaspoons hot sauce (recommended | 10 | hot sauce | 2 teaspoons hot sauce (recommended: Frank's Red Hot) |
-| **special equipment | 10 | special equipment | **Special Equipment:**10" springform cake pan or eight 2/3 or 3/4-cup ramekins or custard ... |
 | bouquet garni | 8 | bouquet garni | Bouquet garni: 1 peeled clove garlic, 4 sprigs parsley, 1 bay leaf and 1 teaspoon dried ro... |
 | 1 teaspoon crushed garlic (recommended | 8 | garlic | 1 teaspoon crushed garlic (recommended: Christopher Ranch) |
-| note | 8 | note | NOTE: You¿ll also need 4 ovenproof bowls or ramekins, about 2 cups each. |
 | 1/3 cup sugar substitute (recommended | 7 | sugar substitute | 1/3 cup sugar substitute (recommended: Splenda) |
-| dash hot sauce (recommended | 7 | hot sauce | Dash hot sauce (recommended: Tabasco) |
 | 1 bouquet garni | 7 | bouquet garni | 1 bouquet garni: 1 sprig fresh thyme or 1/4 teaspoon dried, 2 chives, 1 sprig parsley |
+| dash hot sauce (recommended | 7 | hot sauce | Dash hot sauce (recommended: Tabasco) |
 | 3/4 cup sugar substitute (recommended | 7 | sugar substitute | 3/4 cup sugar substitute (recommended: Splenda) |
 | 3 tablespoons hot sauce (recommended | 6 | hot sauce | 3 tablespoons hot sauce (recommended: Crystal) |
-| suggested dippers | 6 | suggested dipper | Suggested dippers: fruit, pretzels, cookies, etc. |
 | 1/2 cup hot sauce (recommended | 6 | hot sauce | 1/2 cup hot sauce (recommended: Crystal) |
+| egg wash | 6 | egg wash | Egg Wash: 1 egg well beaten with a pinch of salt |
 | 1 cup sugar substitute (recommended | 6 | sugar substitute | 1 cup sugar substitute (recommended: Splenda) |
+| crab boil seasoning (recommended | 5 | crab boil seasoning | Crab boil seasoning (recommended: Old Bay) |
+| 1 tablespoon orange liqueur (recommended | 5 | orange liqueur | 1 tablespoon orange liqueur (recommended: Grand Marnier) |
+| 1 (28-ounce) can tomatoes (recommended | 5 | tomato | 1 (28-ounce) can tomatoes (recommended: San Marzano) |
+| even easier | 5 | even easier purchased chocolate cookie crust | Even easier: High-quality purchased lemon curd can be used in place of homemade. |
+| grill seasoning (recommended | 5 | grill seasoning | Grill seasoning (recommended: Grill Mates Montreal Steak Seasoning by McCormick) or coarse... |
+| 1/4 cup hot sauce (recommended | 5 | hot sauce | 1/4 cup hot sauce (recommended: Crystal) |
+| for garnish | 5 | cilantro | For garnish: 2 tablespoons toasted sesame seeds and a few pineapple rings (use good qualit... |
+| pan preparation | 5 | pan preparation | Pan Preparation: Butter the pan(s) or spray with butter-flavor nonstick vegetable spray an... |
+| suggested garnishes | 5 | suggested garnish | Suggested garnishes: Fresh whipped cream or marshmallow frosting, dark cocoa powder |
+| salt | 4 | salt | Salt: 1/2 teaspoon |
+| 2 teaspoons grill seasoning (recommended | 4 | grill seasoning | 2 teaspoons grill seasoning (recommended: Montreal Seasoning by McCormick), half a palm fu... |
+| 1 (14-ounce) can beef broth (recommended | 4 | beef broth | 1 (14-ounce) can beef broth (recommended: Swanson's) |
+| 1 bottle beer (recommended | 4 | beer | 1 bottle beer (recommended: Abita) |
 
 ## 6. Candidate descriptor words inside canonical names
 
 | word | distinct names | recipes | top examples |
 |---|---|---|---|
-| homemade | 204 | 511 | homemade chicken stock (124), homemade-type white bread (22), homemade chicken broth (18) |
-| store-bought | 326 | 560 | store-bought pizza dough (52), store-bought pesto (19), store-bought puff pastry (18) |
-| reduced-sodium | 36 | 630 | reduced-sodium chicken broth (322), reduced-sodium soy sauce (201), reduced-sodium beef broth (39) |
-| low-sodium | 113 | 1911 | low-sodium chicken broth (1031), low-sodium soy sauce (366), low-sodium chicken stock (167) |
-| small-diced | 33 | 75 | small-diced red onion (21), small-diced celery (15), small-diced carrot (13) |
-| unsalted | 252 | 17490 | unsalted butter (16062), cold unsalted butter (1010), unsalted pistachio (62) |
-| fresh | 23 | 27 | fresh-flat leaf parsley (3), fresh-cut green bean (2), farm-fresh egg (2) |
-| dried | 1489 | 14054 | dried oregano (2992), dried thyme (1592), dried basil (1182) |
-| frozen | 3 | 3 | individually quick-frozen raspberry (1), half-frozen watermelon (1), semi-frozen peach (1) |
-| organic | 318 | 428 | organic egg (29), organic spinach (20), organic lemon (15) |
-| plain | 332 | 2558 | plain yogurt (880), plain greek yogurt (183), plain bread crumb (102) |
-| light | 350 | 5669 | light brown sugar (2762), light corn syrup (1065), light soy sauce (270) |
-| extra-virgin | 93 | 10872 | extra-virgin olive oil (10633), drizzle extra-virgin olive oil (29), high-quality extra-virgin olive oil (17) |
-| freshly | 11 | 37 | freshly-squeezed lemon juice (11), freshly-squeezed orange juice (8), freshly-ground pepper (6) |
-| good-quality | 217 | 441 | good-quality white chocolate (50), good-quality semisweet chocolate (15), good-quality milk chocolate (13) |
-| high-quality | 78 | 178 | high-quality white chocolate (32), high-quality milk chocolate (19), high-quality extra-virgin olive oil (17) |
+| homemade | 13 | 49 | homemade-type white bread (22), homemade-style white bread (14), homemade-type whole-wheat bread (3) |
+| store-bought | 0 | 0 |  |
+| reduced-sodium | 0 | 0 |  |
+| low-sodium | 0 | 0 |  |
+| small-diced | 0 | 0 |  |
+| unsalted | 246 | 17489 | unsalted butter (16802), unsalted pistachio (62), unsalted peanut (58) |
+| fresh | 19 | 22 | fresh-flat leaf parsley (3), fresh-cut green bean (2), fluid-ounces fresh-squeezed lemon juice (1) |
+| dried | 1481 | 14050 | dried oregano (2992), dried thyme (1592), dried basil (1182) |
+| frozen | 3 | 3 | half-frozen watermelon (1), individually quick-frozen raspberry (1), semi-frozen peach (1) |
+| organic | 0 | 0 |  |
+| plain | 324 | 2549 | plain yogurt (878), plain greek yogurt (184), plain bread crumb (103) |
+| light | 345 | 5668 | light brown sugar (2763), light corn syrup (1065), light soy sauce (274) |
+| extra-virgin | 86 | 12012 | extra-virgin olive oil (11796), drizzle extra-virgin olive oil (29), extra-virgin coconut oil (17) |
+| freshly | 7 | 8 | freshly-grated nutmeg (2), freshly-grated ginger (1), freshly-brewed strong coffee (1) |
+| good-quality | 0 | 0 |  |
+| high-quality | 0 | 0 |  |
 
 ## 7. Variant pairs: how often each form appears, and together
 
 | base | recipes | specific form | recipes | recipes with both |
 |---|---|---|---|---|
-| butter | 20278 | unsalted butter | 16062 | 537 |
-| olive oil | 20414 | extra-virgin olive oil | 10633 | 690 |
-| sugar | 17560 | white sugar | 9987 | 55 |
+| butter | 20279 | unsalted butter | 16802 | 566 |
+| olive oil | 20422 | extra-virgin olive oil | 11796 | 827 |
+| sugar | 17567 | white sugar | 9987 | 55 |
 | salt | 47624 | kosher salt | 18753 | 1019 |
-| pepper | 12468 | black pepper | 31106 | 756 |
-| cinnamon | 1509 | ground cinnamon | 7591 | 63 |
-| flour | 2690 | all-purpose flour | 20804 | 111 |
-| milk | 9408 | whole milk | 3391 | 47 |
-| onion | 19256 | red onion | 6100 | 239 |
+| pepper | 12474 | black pepper | 31106 | 756 |
+| cinnamon | 1511 | ground cinnamon | 7592 | 63 |
+| flour | 2693 | all-purpose flour | 20809 | 111 |
+| milk | 9410 | whole milk | 3397 | 47 |
+| onion | 19264 | red onion | 6118 | 238 |
 
 ## 8. Lines containing ' and ' that produced only one ingredient row
 
-- line occurrences: 59953 (many are fine, e.g. 'macaroni and cheese' as one product)
+- line occurrences: 59664 (many are fine, e.g. 'macaroni and cheese' as one product)
 
 | line | canonical |
 |---|---|
