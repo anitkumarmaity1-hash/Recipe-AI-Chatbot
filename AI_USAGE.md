@@ -11,3 +11,4 @@
 - 2026-11-07: Day 1 Steps 3 and 4 (cleaning rules, DuckDB build, hybrid ingredient normalization, allergen taxonomy) written with Claude. The parser library's API was checked by Claude in a Linux sandbox before use. All dataset numbers come from the author's own runs.
 - 2026-11-07/08: Day 1 Steps 4b, 5 and 6 (normalization tuning, statistics tool, BM25 and FAISS indexes) written with Claude and run by the author.
 - 2026-11-08: Day 2 Step 7 (hybrid retrieval: constraint masks, RRF, verification) written with Claude. Claude ran the tests in its own sandbox on a tiny database; the author runs them on the real data.
+- 2026-11-08: Day 2 Step 8 (understanding layer: slot schema, restriction mapping, Gemini backend, tests) written with Claude. Claude checked the model list on the Google docs page and the google-genai SDK signatures in a sandbox; it could not call the real API, so the author runs the first live call.

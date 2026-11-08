@@ -1,0 +1,39 @@
+# Maps the words a user says to HARD constraints (Step 8). Edit freely; no rebuild needed.
+#
+# allergen_phrases: user phrase -> allergen categories defined in allergens.yaml.
+#   Category checks run on the full ingredient line, so they are stricter than
+#   excluding one ingredient name. "nuts" is ambiguous, so it blocks both
+#   peanut and tree_nut (the safe choice).
+# unsupported_phrases: diets and goals we cannot enforce as a hard constraint.
+#   The chatbot says so instead of pretending.
+# Any other phrase (butter, mushrooms, cilantro...) is treated as an ingredient
+# to exclude and is checked against the real ingredient vocabulary later.
+
+allergen_phrases:
+  dairy: [dairy]
+  lactose: [dairy]
+  milk products: [dairy]
+  dairy products: [dairy]
+  egg: [egg]
+  eggs: [egg]
+  peanut: [peanut]
+  peanuts: [peanut]
+  tree nut: [tree_nut]
+  tree nuts: [tree_nut]
+  nut: [peanut, tree_nut]
+  nuts: [peanut, tree_nut]
+  gluten: [gluten]
+
+unsupported_phrases:
+  - vegan
+  - vegetarian
+  - pescatarian
+  - halal
+  - kosher
+  - keto
+  - low carb
+  - low fat
+  - low sodium
+  - low calorie
+  - sugar free
+  - diabetic

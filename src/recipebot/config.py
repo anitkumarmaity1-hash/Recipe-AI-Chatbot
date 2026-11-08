@@ -20,18 +20,25 @@ load_dotenv(PROJECT_ROOT / ".env")
 
 # ---- Paths -----------------------------------------------------------------
 DATA_DIR: Path = PROJECT_ROOT / "data"
-RAW_DIR: Path = DATA_DIR / "raw"            # the 3 original JSON files (not committed)
+# the 3 original JSON files (not committed)
+RAW_DIR: Path = DATA_DIR / "raw"
 DB_PATH: Path = DATA_DIR / "db" / "recipes.duckdb"
 INDEX_DIR: Path = DATA_DIR / "index"        # BM25 pickle, FAISS index, row map
 SAMPLE_DIR: Path = DATA_DIR / "sample"      # small committed sample for tests
-TAXONOMY_DIR: Path = DATA_DIR / "taxonomy"  # allergens, synonyms, pantry YAML files
+# allergens, synonyms, pantry YAML files
+TAXONOMY_DIR: Path = DATA_DIR / "taxonomy"
 
 # ---- LLM settings (values come from .env) ------------------------------------
 GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
 GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "")
+GEMINI_TIMEOUT_SECONDS: float = float(
+    os.getenv("GEMINI_TIMEOUT_SECONDS", "30"))  # NEW
+# NEW: extra tries on 429/5xx
+GEMINI_MAX_RETRIES: int = int(os.getenv("GEMINI_MAX_RETRIES", "2"))
 
 VALID_BACKENDS: tuple[str, ...] = ("gemini", "lora")
-UNDERSTANDING_BACKEND: str = os.getenv("UNDERSTANDING_BACKEND", "gemini").strip().lower()
+UNDERSTANDING_BACKEND: str = os.getenv(
+    "UNDERSTANDING_BACKEND", "gemini").strip().lower()
 if UNDERSTANDING_BACKEND not in VALID_BACKENDS:
     raise ValueError(
         f"UNDERSTANDING_BACKEND must be one of {VALID_BACKENDS}, got {UNDERSTANDING_BACKEND!r}"

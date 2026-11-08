@@ -9,3 +9,4 @@ pytest
 ingredient-parser-nlp
 faiss-cpu
 sentence-transformers
+google-genai

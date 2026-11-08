@@ -50,3 +50,14 @@
 - **Unknown ingredient in a constraint** raises `UnknownIngredientError` with suggestions; it is never ignored silently.
 - **Independent verification:** `HybridRetriever.verify()` re-checks returned recipes without using the mask (allergens line by line, steps and ingredients from the database). Tests assert it returns no violations; the output guard will reuse it.
 - **Limits:** allergen detection is a text check (hidden ingredients are not found); equal RRF weights and `k = 60` are defaults, not tuned; no evaluation of retrieval quality yet (planned with the golden set, Step 14).
+
+## 8. Understanding layer (Step 8)
+- **Job of the LLM:** turn one user message into an `Understanding` (an intent plus slots, `src/recipebot/schemas.py`). It never produces recipe facts, counts or ingredient lists.
+- **Structured output:** Gemini is called with `response_mime_type="application/json"`, a JSON schema generated from the dataclass, and temperature 0. A test keeps schema and dataclass identical. "Not given" is `""`, `0` or `"none"` instead of null (a simpler schema for the API).
+- **Validation, never guessing:** `Understanding.from_dict` rejects unknown intents, wrong types and negative numbers. Invalid output gets ONE repair attempt (the model sees its own error), then `UnderstandingError`.
+- **Safety decisions are not made by the model:** the model copies phrases such as "dairy" or "butter" into `exclude`; `RestrictionMapper` plus `data/taxonomy/restriction_terms.yaml` decides whether each phrase is an allergen category, an ingredient or an unsupported diet. "nuts" blocks both peanut and tree_nut. Vegan, keto and similar are reported as not enforceable.
+- **Made-up recipe ids are dropped:** `target_recipe_id` must appear in the session state's `last_results` or `active_recipe`.
+- **Failures:** 429 / 5xx / network errors are retried with backoff (`GEMINI_MAX_RETRIES`); other API errors fail immediately; the API key is scrubbed from error messages.
+- **Backend switch:** `UNDERSTANDING_BACKEND=gemini|lora`; `lora` raises a clear "built in Step 13" error until then.
+- **Models (docs page read on 2026-11-08):** stable `gemini-3.8-flash`, `gemini-3.6-flash`, `gemini-3.5-flash-lite`, `gemini-3.1-flash-lite`; `gemini-2.0-*` already shut down; `gemini-2.5-*` restricted to earlier users. Free-tier rate limits were NOT verified (the limits page I could read was outdated); check them in AI Studio.
+- **Limits:** the first call against the real API is the author's smoke test; prompt examples are not an evaluation. Understanding accuracy is measured later on the golden conversations (Step 14).
