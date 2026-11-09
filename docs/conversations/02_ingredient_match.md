@@ -198,3 +198,172 @@ Instructions (7 steps, one sentence = one step):
 Note: this is the cleaned text (ADVERTISEMENT markers and section-header lines removed); the original text is stored unchanged in the database.
 ```
 
+### Turn 1
+
+**User:** I have eggs, onions and tomatoes. No peanuts, and at most 6 steps.
+
+Understanding: `{"intent": "match", "dish_query": null, "include": [], "include_any": [], "exclude": ["peanuts"], "allow": [], "max_steps": 6, "available": ["eggs", "onions", "tomatoes"], "stat_type": null, "k": null, "target_recipe_id": null, "target_recipe_title": null, "ingredient_to_replace": null, "restriction_type": "preference", "reason": null}`
+
+**Chatbot:**
+
+```text
+Added restriction: no peanut (allergen check on every ingredient line).
+Ingredient match for: egg, onion, tomato (3 ingredients)
+Hard filters applied: no peanut (allergen check); at most 6 steps
+Recipes using at least one of your ingredients: 45,344 of 121,896.
+Of these, 5,565 pass the hard filters; nothing was relaxed. Recipes without instructions are not ranked.
+Ranking: score = 4 x coverage - 2 x extra - 0.1 x steps (steps counted up to 30). coverage = matched / your ingredients; extra = extra needed / ingredients the recipe needs (pantry staples are not counted). Weights are design choices (src/recipebot/config.py), not measured values.
+
+1. Chilaquiles III  [ar:DeNVpFQNRBa82qC8Y2NfyLO6UInx9qG]  score 2.70
+   Matched (3 of 3): egg, onion, tomato
+   Missing, you have it but the recipe does not use it (0): none
+   Extra needed, the recipe requires it and it is not in your list (2): corn tortilla, serrano chile pepper
+   Pantry staples assumed, not scored: vegetable oil, salt, pepper
+   5 steps | score = 4 x 1.00 - 2 x 0.40 - 0.1 x 5 = 2.70
+   Check: hard filters re-verified from the database, none violated
+2. Extreme Veggie Scrambled Eggs  [ar:56smttC.gspsdV5pRtb8NkBrph1HiGW]  score 2.46
+   Matched (3 of 3): egg, onion, tomato
+   Missing, you have it but the recipe does not use it (0): none
+   Extra needed, the recipe requires it and it is not in your list (4): canned black bean, green bell pepper, milk, cheddar cheese
+   Pantry staples assumed, not scored: olive oil
+   4 steps | score = 4 x 1.00 - 2 x 0.57 - 0.1 x 4 = 2.46
+   Check: hard filters re-verified from the database, none violated
+3. Amaya’s Migas   [epi:b/vtNUJxUNBntMXt00YtpY2PzrKN6IW]  score 2.40
+   Matched (3 of 3): egg, onion, tomato
+   Missing, you have it but the recipe does not use it (0): none
+   Extra needed, the recipe requires it and it is not in your list (3): dime-sized tortilla piece, jalape o chile, cheddar cheese
+   Pantry staples assumed, not scored: vegetable oil
+   6 steps | score = 4 x 1.00 - 2 x 0.50 - 0.1 x 6 = 2.40
+   Check: hard filters re-verified from the database, none violated
+4. Indian Scrambled Eggs  [fn:rkbBC/9QWpaD8CVRQkY6aXUcX4AOFwC]  score 2.40
+   Matched (3 of 3): egg, onion, tomato
+   Missing, you have it but the recipe does not use it (0): none
+   Extra needed, the recipe requires it and it is not in your list (3): butter, green chile red chile powder, cilantro leaf
+   Pantry staples assumed, not scored: vegetable oil, salt
+   6 steps | score = 4 x 1.00 - 2 x 0.50 - 0.1 x 6 = 2.40
+   Check: hard filters re-verified from the database, none violated
+5. Pepperoni Pizza Omelet  [ar:Jh59y4SRRGBuO2Aj2THTn48gUAQCnrK]  score 2.35
+   Matched (3 of 3): egg, onion, tomato
+   Missing, you have it but the recipe does not use it (0): none
+   Extra needed, the recipe requires it and it is not in your list (5): pizza sauce, pepperoni, mushroom, olive, dried oregano
+   Pantry staples assumed, not scored: salt, black pepper, olive oil
+   4 steps | score = 4 x 1.00 - 2 x 0.62 - 0.1 x 4 = 2.35
+   Check: hard filters re-verified from the database, none violated
+
+Ask for 'the second one' to see its ingredients and steps.
+Quantities: Ingredient names match, but quantity sufficiency could not be verified from the dataset.
+Allergen checks read the ingredient text only; hidden sources (for example milk inside chocolate chips) cannot be detected. This is not medical advice: always check the real labels.
+```
+
+### Turn 2
+
+**User:** Exclude eggs too.
+
+Understanding: `{"intent": "refine", "dish_query": null, "include": [], "include_any": [], "exclude": ["eggs"], "allow": [], "max_steps": null, "available": [], "stat_type": null, "k": null, "target_recipe_id": null, "target_recipe_title": null, "ingredient_to_replace": null, "restriction_type": "preference", "reason": null}`
+
+**Chatbot:**
+
+```text
+Added restriction: no egg (allergen check on every ingredient line).
+Ingredient match for: onion, tomato (2 ingredients)
+Not counted: 'egg' is in your ingredient list but you also excluded it.
+Hard filters applied: no peanut, egg (allergen check); at most 6 steps
+Recipes using at least one of your ingredients: 23,014 of 121,896.
+Of these, 3,356 pass the hard filters; nothing was relaxed. Recipes without instructions are not ranked.
+Ranking: score = 4 x coverage - 2 x extra - 0.1 x steps (steps counted up to 30). coverage = matched / your ingredients; extra = extra needed / ingredients the recipe needs (pantry staples are not counted). Weights are design choices (src/recipebot/config.py), not measured values.
+
+1. Easy Tomato Sauce  [ar:xk2fbg06H5wTt/ZiPJn8ouhIuwjFR8.]  score 2.93
+   Matched (2 of 2): onion, tomato
+   Missing, you have it but the recipe does not use it (0): none
+   Extra needed, the recipe requires it and it is not in your list (1): tomato puree
+   Pantry staples assumed, not scored: olive oil, salt, pepper
+   4 steps | score = 4 x 1.00 - 2 x 0.33 - 0.1 x 4 = 2.93
+   Check: hard filters re-verified from the database, none violated
+2. Tst  [fn:3O0ZS0CGpn5WmNt1MuzLZ4n.Qv6FD92]  score 2.93
+   Matched (2 of 2): onion, tomato
+   Missing, you have it but the recipe does not use it (0): none
+   Extra needed, the recipe requires it and it is not in your list (1): grreen chilly
+   4 steps | score = 4 x 1.00 - 2 x 0.33 - 0.1 x 4 = 2.93
+   Check: hard filters re-verified from the database, none violated
+3. Tstcgdgdgdgdgdgdgd  [fn:y30FwL6wwJG0FexYd4qgv5gb7eikTKy]  score 2.93
+   Matched (2 of 2): onion, tomato
+   Missing, you have it but the recipe does not use it (0): none
+   Extra needed, the recipe requires it and it is not in your list (1): grreen chilly
+   4 steps | score = 4 x 1.00 - 2 x 0.33 - 0.1 x 4 = 2.93
+   Check: hard filters re-verified from the database, none violated
+4. Stewed Okra and Tomatoes  [fn:gHVze5eHhpq70AUkpeFP7360BBTEP6O]  score 2.80
+   Matched (2 of 2): onion, tomato
+   Missing, you have it but the recipe does not use it (0): none
+   Extra needed, the recipe requires it and it is not in your list (2): okra, sugar
+   Pantry staples assumed, not scored: water
+   2 steps | score = 4 x 1.00 - 2 x 0.50 - 0.1 x 2 = 2.80
+   Check: hard filters re-verified from the database, none violated
+5. Mango Relish  [ar:Uqegvq6Us6JZqp7klBVzQF11ftcFfKe]  score 2.70
+   Matched (2 of 2): onion, tomato
+   Missing, you have it but the recipe does not use it (0): none
+   Extra needed, the recipe requires it and it is not in your list (2): green mango, cilantro
+   Pantry staples assumed, not scored: salt, pepper
+   3 steps | score = 4 x 1.00 - 2 x 0.50 - 0.1 x 3 = 2.70
+   Check: hard filters re-verified from the database, none violated
+
+Ask for 'the second one' to see its ingredients and steps.
+Quantities: Ingredient names match, but quantity sufficiency could not be verified from the dataset.
+Allergen checks read the ingredient text only; hidden sources (for example milk inside chocolate chips) cannot be detected. This is not medical advice: always check the real labels.
+```
+
+### Turn 3
+
+**User:** I also have rice.
+
+Understanding: `{"intent": "match", "dish_query": null, "include": [], "include_any": [], "exclude": [], "allow": [], "max_steps": null, "available": ["eggs", "onions", "tomatoes", "rice"], "stat_type": null, "k": null, "target_recipe_id": null, "target_recipe_title": null, "ingredient_to_replace": null, "restriction_type": null, "reason": null}`
+
+**Chatbot:**
+
+```text
+Ingredient list extended: your 'must contain' list and step limit were kept.
+Ingredient match for: onion, tomato, rice (3 ingredients)
+Not counted: 'egg' is in your ingredient list but you also excluded it.
+Hard filters applied: no peanut, egg (allergen check); at most 6 steps
+Recipes using at least one of your ingredients: 23,290 of 121,896.
+Of these, 3,412 pass the hard filters; nothing was relaxed. Recipes without instructions are not ranked.
+Ranking: score = 4 x coverage - 2 x extra - 0.1 x steps (steps counted up to 30). coverage = matched / your ingredients; extra = extra needed / ingredients the recipe needs (pantry staples are not counted). Weights are design choices (src/recipebot/config.py), not measured values.
+
+1. Hoppin' John   [epi:4UUQ6uRJcpuLIZPkPud5UWwRkViq0Z.]  score 2.35
+   Matched (3 of 3): onion, tomato, rice
+   Missing, you have it but the recipe does not use it (0): none
+   Extra needed, the recipe requires it and it is not in your list (5): slab bacon, celery, garlic, black-eyed pea, red pepper flake
+   Pantry staples assumed, not scored: salt, black pepper, water
+   4 steps | score = 4 x 1.00 - 2 x 0.62 - 0.1 x 4 = 2.35
+   Check: hard filters re-verified from the database, none violated
+2. String Beans and Tomatoes  [fn:CFfp23vqCnmrQBvLVFdWd/qLrmsS0f.]  score 2.05
+   Matched (3 of 3): onion, tomato, rice
+   Missing, you have it but the recipe does not use it (0): none
+   Extra needed, the recipe requires it and it is not in your list (8): red bell pepper, garlic, butter, ketchup, carrot, dried basil, tomatoes with chile, string bean
+   Pantry staples assumed, not scored: salt, pepper
+   5 steps | score = 4 x 1.00 - 2 x 0.73 - 0.1 x 5 = 2.05
+   Check: hard filters re-verified from the database, none violated
+3. Vegetarian Southwest One-Pot Dinner  [ar:HlBLVYXlxk2ky1lf6PDYuUEV642OYYa]  score 2.00
+   Matched (3 of 3): onion, tomato, rice
+   Missing, you have it but the recipe does not use it (0): none
+   Extra needed, the recipe requires it and it is not in your list (7): dried black-eyed pea, green bell pepper, garlic, sweet corn, chili powder, ground cumin, cheddar cheese
+   6 steps | score = 4 x 1.00 - 2 x 0.70 - 0.1 x 6 = 2.00
+   Check: hard filters re-verified from the database, none violated
+4. Peruvian Meat and Rice  [ar:MkERS7slxjrIYZxp8FN4SUUTkPo0Q1i]  score 1.95
+   Matched (3 of 3): onion, tomato, rice
+   Missing, you have it but the recipe does not use it (0): none
+   Extra needed, the recipe requires it and it is not in your list (8): ground pork, garlic, ground cumin, southern-style hash brown potato, soy sauce, parsley, oregano, cilantro
+   Pantry staples assumed, not scored: vegetable oil, salt, black pepper
+   6 steps | score = 4 x 1.00 - 2 x 0.73 - 0.1 x 6 = 1.95
+   Check: hard filters re-verified from the database, none violated
+5. Slow Cooker Jambalaya  [fn:1CD3HIGht0jcS8vEMxkdy/rC1oAGSOi]  score 1.93
+   Matched (3 of 3): onion, tomato, rice
+   Missing, you have it but the recipe does not use it (0): none
+   Extra needed, the recipe requires it and it is not in your list (11): chicken breast, andouille sausage, green bell pepper, celery, chicken broth, dried oregano, cajun seasoning, hot sauce, bay leaf, dried thyme, shrimp
+   5 steps | score = 4 x 1.00 - 2 x 0.79 - 0.1 x 5 = 1.93
+   Check: hard filters re-verified from the database, none violated
+
+Ask for 'the second one' to see its ingredients and steps.
+Quantities: Ingredient names match, but quantity sufficiency could not be verified from the dataset.
+Allergen checks read the ingredient text only; hidden sources (for example milk inside chocolate chips) cannot be detected. This is not medical advice: always check the real labels.
+```
+

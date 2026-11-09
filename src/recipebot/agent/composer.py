@@ -23,6 +23,11 @@ def fmt_int(n: int) -> str:
     return f"{n:,}"
 
 
+def plural(n: int, word: str) -> str:
+    """'1 step', '4 steps' (all counted words here add a plain 's')."""
+    return f"{n} {word}" if n == 1 else f"{n} {word}s"
+
+
 def fmt_pct(x: float) -> str:
     return f"{x:.1f}%"
 
@@ -44,7 +49,7 @@ def constraints_text(c: dict[str, Any], unenforced: Sequence[str] = ()) -> str:
     if c.get("include"):
         parts.append(f"must contain {_names(c['include'])}")
     if c.get("max_steps") is not None:
-        parts.append(f"at most {c['max_steps']} steps")
+        parts.append(f"at most {plural(c['max_steps'], 'step')}")
     text = "; ".join(parts) or "none"
     if unenforced:
         text += f". NOT enforced (cannot be checked reliably): {_names(unenforced)}"
@@ -65,7 +70,7 @@ def filters_text(f: dict[str, Any]) -> str:
     if f.get("exclude_allergens"):
         parts.append(f"no {_names(f['exclude_allergens'])} (allergen check)")
     if f.get("max_steps") is not None:
-        parts.append(f"at most {f['max_steps']} steps")
+        parts.append(f"at most {plural(f['max_steps'], 'step')}")
     if f.get("min_steps"):
         parts.append(f"at least {f['min_steps']} step(s)")
     return "; ".join(parts) or "none (all usable recipes)"
@@ -84,7 +89,7 @@ def _check_text(c: dict[str, Any], n_ingredients: int, n_steps: int) -> str:
     if c.get("include"):
         parts.append(f"contains {_names(c['include'])}")
     if c.get("max_steps") is not None:
-        parts.append(f"{n_steps} steps (limit {c['max_steps']})")
+        parts.append(f"{plural(n_steps, 'step')} (limit {c['max_steps']})")
     return "; ".join(parts) or "no hard filters active"
 
 
@@ -115,7 +120,7 @@ def compose_search(
             se = f"#{h.semantic_rank}" if h.semantic_rank else "-"
             lines.append(f"{pos}. {h.title}  [{h.id}]")
             lines.append(
-                f"   {n_steps} steps | {n_ing} ingredients | BM25 {bm}, embeddings {se}")
+                f"   {plural(n_steps, 'step')} | {n_ing} ingredients | BM25 {bm}, embeddings {se}")
             lines.append(f"   Check: {_check_text(c, n_ing, n_steps)}")
         lines.append("")
         lines.append(
@@ -179,7 +184,7 @@ def compose_stats(res, notes: Sequence[str] = ()) -> str:
             lines.append("Recipes with the fewest steps:")
             for pos, row in enumerate(v, 1):
                 lines.append(
-                    f"{pos}. {row['title']}  [{row['id']}]  - {row['n_steps']} steps")
+                    f"{pos}. {row['title']}  [{row['id']}]  - {plural(row['n_steps'], 'step')}")
     lines.append(f"Recipes analyzed: {fmt_int(n)}")
     lines.append(f"Filters applied: {filters_text(res.filters)}")
     if res.name == "percentage":
@@ -212,7 +217,7 @@ def compose_details(
         f"{title}  [{recipe_id}]  (source: {source_label})", "", "Ingredients:"]
     lines += [f"  - {line}" for line in ingredient_lines]
     lines += ["",
-              f"Instructions ({len(steps)} steps, one sentence = one step):"]
+              f"Instructions ({plural(len(steps), 'step')}, one sentence = one step):"]
     lines += [f"  {i}. {step}" for i,
               step in enumerate(steps, 1)] or ["  (this recipe has no instructions)"]
     lines += ["", "Note: this is the cleaned text (ADVERTISEMENT markers and section-header lines "

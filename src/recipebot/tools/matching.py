@@ -20,6 +20,9 @@ How the matching works
   * Matching is done in ONE SQL query over recipe_ingredient; the hard constraints
     come from a boolean mask; the score is computed here with the weights from config.
   * Recipes with 0 steps (no instructions) are not ranked.
+  * Step 10b: an ingredient the user lists is also dropped (and reported) when it is
+    covered by an excluded ALLERGEN ("eggs" while "no egg" is active), not only when it
+    is an excluded ingredient. Otherwise it would count as "missing" in every result.
 """
 
 from __future__ import annotations
@@ -33,6 +36,7 @@ import numpy as np
 import yaml
 
 from recipebot import config
+from recipebot.normalization.allergens import AllergenMatcher
 from recipebot.normalization.ingredients import (
     IngredientNormalizer,
     load_extra_descriptors,
@@ -143,10 +147,13 @@ class RecipeMatcher:
         staples: Iterable[str] | None = None,
         normalizer: IngredientNormalizer | None = None,
         settings: MatchSettings | None = None,
+        allergen_matcher: AllergenMatcher | None = None,
     ):
         self.con = con
         self.stats = stats
         self.settings = settings or MatchSettings()
+        # used only to drop listed ingredients that an excluded allergen covers
+        self.allergen_matcher = allergen_matcher
         self.normalizer = normalizer or IngredientNormalizer(
             load_synonyms(), load_extra_descriptors())
         self._require_columns()
@@ -210,10 +217,35 @@ class RecipeMatcher:
                 bases.add(self.base_of.get(name, name))
         return bases
 
+    def _allergen_hit(self, term: Term, allergens: Sequence[str],
+                      matcher: AllergenMatcher | None) -> str | None:
+        """The excluded allergen that covers this ingredient ("egg" for egg), else None.
+
+        Uses the same whole-word taxonomy as the recipe filter, on the term's base name and
+        on every form of it ("butter", "unsalted butter"), so "coconut milk" is not dairy.
+        """
+        if not allergens:
+            return None
+        if matcher is None:
+            raise ValueError(
+                "An allergen matcher is required when allergens are excluded.")
+        for allergen in allergens:
+            for text in dict.fromkeys([term.base, *term.names]):
+                if matcher.matches(text, allergen):
+                    return allergen
+        return None
+
     def prepare_terms(
-        self, available: Sequence[str], excluded: Iterable[str] = ()
+        self, available: Sequence[str], excluded: Iterable[str] = (),
+        excluded_allergens: Sequence[str] = (),
+        allergen_matcher: AllergenMatcher | None = None,
     ) -> tuple[list[Term], list[dict[str, Any]], list[str]]:
-        """Returns (terms, unknown, dropped). Nothing is ignored silently."""
+        """Returns (terms, unknown, dropped). Nothing is ignored silently.
+
+        A listed ingredient is dropped (and named in `dropped`) when it is an excluded
+        ingredient OR is covered by an excluded allergen.
+        """
+        matcher = allergen_matcher or self.allergen_matcher
         banned = self._excluded_bases(excluded)
         terms: list[Term] = []
         unknown: list[dict[str, Any]] = []
@@ -224,7 +256,7 @@ class RecipeMatcher:
             except UnknownIngredientError as exc:
                 unknown.append({"term": raw, "suggestions": exc.suggestions})
                 continue
-            if term.base in banned:
+            if term.base in banned or self._allergen_hit(term, excluded_allergens, matcher):
                 if term.base not in dropped:
                     dropped.append(term.base)
             elif all(term.base != t.base for t in terms):
@@ -274,11 +306,12 @@ class RecipeMatcher:
         allowed: np.ndarray,
         mask_sql: str = "",
         k: int = 5,
+        allergen_matcher: AllergenMatcher | None = None,
     ) -> MatchResult:
         """Rank recipes. `allowed` is the hard-constraint mask (True = may be returned)."""
         cfg = self.settings
         terms, unknown, dropped = self.prepare_terms(
-            available, constraints.exclude)
+            available, constraints.exclude, constraints.exclude_allergens, allergen_matcher)
 
         def result(hits: list[MatchHit], n_candidates=0, n_eligible=0, note="", sql="") -> MatchResult:
             return MatchResult(

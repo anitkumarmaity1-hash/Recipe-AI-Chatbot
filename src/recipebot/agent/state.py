@@ -12,10 +12,14 @@ Pure Python, no database, no model. Rules (also written in docs/DESIGN.md):
   * Step 10: `available` (the ingredients the user has) and `mode` ("search" or
     "match") are remembered, so "Exclude eggs too" after an ingredient match
     re-runs the MATCH, not a text search. `available` survives clear_filters.
+  * Step 10b: a new ingredient list that still contains every ingredient of the old
+    one ("I also have rice") EXTENDS the same search: the step limit and the
+    "must contain" list are kept. Any other new list starts a new search.
 """
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -45,6 +49,22 @@ def _remove(items: list[str], value: str) -> bool:
 def label(name: str) -> str:
     """'tree_nut' -> 'tree nut' (for messages)."""
     return name.replace("_", " ")
+
+
+def ingredient_key(text: str) -> str:
+    """Rough comparison key for the user's ingredient words: 'Tomatoes ' -> 'tomato'.
+
+    Only used to decide whether a new list extends the old one. A wrong guess is safe:
+    the list is then treated as a new search, which is announced to the user.
+    """
+    word = re.sub(r"\s+", " ", text.lower()).strip()
+    if word.endswith("ies") and len(word) > 4:
+        return word[:-3] + "y"
+    if word.endswith("oes") and len(word) > 4:
+        return word[:-2]
+    if word.endswith("s") and not word.endswith("ss") and len(word) > 3:
+        return word[:-1]
+    return word
 
 
 @dataclass
@@ -131,9 +151,17 @@ class SessionState:
                 self.last_query = query
         elif u.intent is Intent.MATCH:
             self.mode = "match"
-            if u.available:                                 # a new list starts a new match
-                self.available = list(u.available)
-                self._start_new_search(u, changes)
+            if u.available:
+                # "I also have rice": same search
+                if self._extends_available(u.available):
+                    self.available = list(u.available)
+                    self._merge_one_search_settings(u)
+                    if self.include or self.max_steps is not None:
+                        changes.append("Ingredient list extended: your 'must contain' list "
+                                       "and step limit were kept.")
+                else:                                       # any other list starts a new match
+                    self.available = list(u.available)
+                    self._start_new_search(u, changes)
             else:                                           # "what can I cook?" keeps the list
                 self._merge_one_search_settings(u)
         else:
@@ -141,6 +169,11 @@ class SessionState:
             if u.dish_query:
                 self.last_query = u.dish_query
         return changes
+
+    def _extends_available(self, new: list[str]) -> bool:
+        """True when the old list is not empty and every old ingredient is still in the new one."""
+        old = {ingredient_key(x) for x in self.available}
+        return bool(old) and old <= {ingredient_key(x) for x in new}
 
     def _start_new_search(self, u: Understanding, changes: list[str]) -> None:
         if self.include or self.max_steps is not None:

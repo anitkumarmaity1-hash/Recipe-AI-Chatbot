@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import Sequence
 
-from recipebot.agent.composer import ALLERGEN_DISCLAIMER, constraints_text, fmt_int
+from recipebot.agent.composer import ALLERGEN_DISCLAIMER, constraints_text, fmt_int, plural
 from recipebot.tools.matching import QUANTITY_NOTE, MatchResult
 
 
@@ -31,7 +31,7 @@ def compose_match(res: MatchResult, unenforced: Sequence[str] = (),
     lines = list(changes)
     if res.terms:
         lines.append(
-            f"Ingredient match for: {', '.join(res.terms)} ({len(res.terms)} ingredients)")
+            f"Ingredient match for: {', '.join(res.terms)} ({plural(len(res.terms), 'ingredient')})")
     for item in res.unknown:
         hint = f" Did you mean: {', '.join(item['suggestions'])}?" if item["suggestions"] else ""
         lines.append(f"Not recognized, ignored: '{item['term']}'.{hint}")
@@ -73,7 +73,7 @@ def compose_match(res: MatchResult, unenforced: Sequence[str] = (),
                 lines.append(
                     f"   Pantry staples assumed, not scored: {_list(h.staples)}")
             lines.append(
-                f"   {h.n_steps} steps | score = {s['w_coverage']:g} x {h.coverage:.2f} "
+                f"   {plural(h.n_steps, 'step')} | score = {s['w_coverage']:g} x {h.coverage:.2f} "
                 f"- {s['w_extra']:g} x {h.extra_ratio:.2f} "
                 f"- {s['w_steps']:g} x {min(h.n_steps, s['step_cap'])} = {h.score:.2f}")
             lines.append("   Check: " + ("hard filters re-verified from the database, none violated"

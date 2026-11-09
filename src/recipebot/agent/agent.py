@@ -195,8 +195,11 @@ class RecipeAgent:
         constraints = st.constraints()
         mask, mask_sql = self.retriever.allowed_mask(constraints)
         k = min(u.k or self.default_k, self.max_k)
+        # Step 10b: the retriever's allergen matcher also drops listed ingredients an
+        # excluded allergen covers ("eggs" while "no egg" is active)
         res = self.matcher.match(
-            st.available, constraints, mask, mask_sql, k=k)
+            st.available, constraints, mask, mask_sql, k=k,
+            allergen_matcher=self.retriever.matcher)
 
         problems = [*self.retriever.verify(res.hits, constraints),   # hard constraints, re-checked
                     # SQL numbers vs listed evidence
