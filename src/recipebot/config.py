@@ -58,6 +58,34 @@ MATCH_STEP_CAP: int = 30
 MATCH_MIN_MATCHED: int = 1
 PANTRY_STAPLES_PATH: Path = TAXONOMY_DIR / "pantry_staples.yaml"
 
+# ---- Substitution evidence, Task 3 (Step 11): change a value and rerun ---------
+# Dish similarity = Jaccard overlap of the two recipes' "core" ingredients (the
+# ingredient being replaced and pantry staples are left out of both sets).
+# a recipe this similar is "related" (indirect evidence)
+SUB_RELATED_MIN_SIM: float = 0.30
+# ...and this similar AND sharing a title word = same dish family (direct)
+SUB_NEIGHBOR_MIN_SIM: float = 0.50
+# title words (generic ones ignored) shared with the original
+SUB_MIN_TITLE_OVERLAP: int = 1
+# recipes that must use a substitute before it counts as evidence
+SUB_MIN_SUPPORT: int = 2
+# same-dish-family recipes needed for the label "direct"
+SUB_MIN_DIRECT_SUPPORT: int = 2
+# share of ingredient-free recipes using it minus share of the others
+SUB_MIN_ENRICHMENT: float = 0.02
+# most similar recipes kept per group (speed; reported when it cuts)
+SUB_POOL_SIZE: int = 3000
+SUB_MAX_CANDIDATES: int = 5          # substitutes returned
+SUB_MAX_CITED: int = 5               # recipe ids cited per substitute
+# words that describe a recipe's style, not its dish; ignored when comparing titles
+SUB_GENERIC_TITLE_WORDS: tuple[str, ...] = (
+    "easy", "best", "classic", "quick", "simple", "homemade", "perfect", "favorite",
+    "old", "fashioned", "fast", "delicious", "great", "basic", "style", "my", "mom",
+    "grandma", "grandmother", "moist", "healthy", "low", "fat", "free", "light",
+    "traditional", "ultimate", "super", "good", "no",
+)
+INGREDIENT_ROLES_PATH: Path = TAXONOMY_DIR / "ingredient_roles.yaml"
+
 VALID_BACKENDS: tuple[str, ...] = ("gemini", "lora")
 UNDERSTANDING_BACKEND: str = os.getenv(
     "UNDERSTANDING_BACKEND", "gemini").strip().lower()

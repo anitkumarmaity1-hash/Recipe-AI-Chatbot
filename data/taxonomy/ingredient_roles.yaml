@@ -1,0 +1,175 @@
+# Ingredient roles, typical substitutes and what removing an ingredient does (Step 11, Task 3).
+#
+# IMPORTANT: everything in this file is GENERAL COOKING KNOWLEDGE written by hand.
+# It is NOT dataset evidence. The chatbot labels it that way, and a substitute listed
+# here is only recommended when the recipes in the dataset also support it.
+#
+# Names must be canonical ingredient names as they appear in the dataset
+# (recipe_ingredient.canonical). Check them against your database with:
+#     python -m recipebot.tools.substitution --check-taxonomy
+# A name that is not in the dataset is reported there; fix it by editing this file.
+# The lookup tries the name first, then its forms from ingredient_variants.yaml
+# ("unsalted butter" finds the entry for "butter").
+
+# The only role words allowed below (a test checks this).
+role_vocabulary:
+  - binding        # holds the mixture together
+  - leavening      # makes it rise
+  - structure      # gives body / shape when baked or set
+  - moisture       # keeps the result moist
+  - liquid         # the wet base of a batter, sauce or soup
+  - fat            # fat content
+  - richness       # a rich, creamy mouthfeel
+  - sweetness
+  - thickening
+  - acid
+  - flavor
+  - seasoning
+  - tenderness     # a soft crumb or texture
+  - crunch
+
+roles:
+  # eggs
+  egg: [binding, leavening, structure, moisture, richness]
+  egg yolk: [richness, binding, thickening]
+  egg white: [structure, leavening, binding]
+  # fats
+  butter: [fat, richness, flavor, tenderness]
+  margarine: [fat, richness, tenderness]
+  shortening: [fat, tenderness]
+  lard: [fat, tenderness]
+  vegetable oil: [fat, moisture, tenderness]
+  canola oil: [fat, moisture, tenderness]
+  olive oil: [fat, flavor, moisture]
+  coconut oil: [fat, richness]
+  mayonnaise: [binding, moisture, richness, fat]
+  # dairy and dairy-like liquids
+  milk: [liquid, moisture, richness]
+  buttermilk: [liquid, acid, tenderness, moisture]
+  heavy cream: [richness, fat, thickening, liquid]
+  half-and-half: [richness, liquid]
+  evaporated milk: [liquid, richness]
+  sweetened condensed milk: [sweetness, richness, thickening]
+  sour cream: [richness, moisture, acid, tenderness]
+  yogurt: [moisture, acid, tenderness, richness]
+  plain yogurt: [moisture, acid, tenderness, richness]
+  greek yogurt: [moisture, acid, tenderness, richness]
+  cream cheese: [richness, structure, thickening]
+  mascarpone: [richness, fat]
+  ricotta cheese: [richness, moisture, structure]
+  cottage cheese: [moisture, structure]
+  coconut milk: [liquid, richness, moisture]
+  coconut cream: [richness, fat, thickening]
+  soy milk: [liquid]
+  almond milk: [liquid]
+  oat milk: [liquid]
+  water: [liquid, moisture]
+  chicken broth: [liquid, flavor]
+  chicken stock: [liquid, flavor]
+  vegetable broth: [liquid, flavor]
+  beef broth: [liquid, flavor]
+  # cheeses
+  parmesan cheese: [flavor, richness, seasoning]
+  romano cheese: [flavor, seasoning]
+  pecorino romano: [flavor, seasoning]
+  mozzarella cheese: [richness, structure]
+  cheddar cheese: [richness, flavor]
+  feta cheese: [flavor, seasoning]
+  nutritional yeast: [flavor]
+  # flours, starches, crumbs
+  flour: [structure, thickening]
+  all-purpose flour: [structure, thickening]
+  bread flour: [structure]
+  cake flour: [structure, tenderness]
+  whole wheat flour: [structure]
+  almond flour: [structure, richness]
+  oat flour: [structure]
+  rice flour: [structure, thickening]
+  cornstarch: [thickening]
+  arrowroot: [thickening]
+  breadcrumb: [binding, crunch]
+  panko breadcrumb: [crunch, binding]
+  rolled oat: [structure, binding]
+  # sweeteners
+  sugar: [sweetness, moisture, tenderness]
+  white sugar: [sweetness, moisture, tenderness]
+  brown sugar: [sweetness, moisture, tenderness]
+  powdered sugar: [sweetness, thickening]
+  honey: [sweetness, moisture, binding]
+  maple syrup: [sweetness, moisture]
+  agave nectar: [sweetness, moisture]
+  molasses: [sweetness, moisture, flavor]
+  corn syrup: [sweetness, moisture, binding]
+  # fruit, vegetable and plant binders
+  applesauce: [moisture, sweetness, binding]
+  banana: [moisture, binding, sweetness, flavor]
+  pumpkin puree: [moisture, binding]
+  ground flaxseed: [binding, thickening]
+  flaxseed: [binding, thickening]
+  chia seed: [binding, thickening]
+  tofu: [binding, structure, moisture]
+  silken tofu: [binding, structure, moisture]
+  cashew: [richness, thickening]
+  peanut butter: [fat, richness, binding]
+  almond butter: [fat, richness, binding]
+  tahini: [fat, richness, binding]
+  # leavening, acids, sauces and flavor
+  baking powder: [leavening]
+  baking soda: [leavening]
+  yeast: [leavening]
+  vinegar: [acid, flavor]
+  white vinegar: [acid, flavor]
+  white wine vinegar: [acid, flavor]
+  apple cider vinegar: [acid, flavor]
+  lemon juice: [acid, flavor]
+  lime juice: [acid, flavor]
+  white wine: [liquid, acid, flavor]
+  red wine: [liquid, acid, flavor]
+  tomato paste: [thickening, flavor, acid]
+  tomato sauce: [liquid, flavor, thickening]
+  soy sauce: [seasoning, flavor, liquid]
+  worcestershire sauce: [flavor, seasoning]
+  vanilla extract: [flavor]
+  cocoa powder: [flavor]
+  salt: [seasoning]
+  garlic: [flavor]
+  onion: [flavor]
+  shallot: [flavor]
+
+# Typical substitutes from general cooking knowledge ("priors"). They are shown to the
+# user ONLY together with the dataset evidence found for them; with no supporting
+# recipes they are reported as "no dataset evidence".
+substitutes:
+  egg: [applesauce, banana, yogurt, ground flaxseed, tofu, mayonnaise, pumpkin puree]
+  butter: [margarine, shortening, vegetable oil, olive oil, coconut oil, applesauce]
+  milk: [water, soy milk, almond milk, oat milk, coconut milk, evaporated milk]
+  heavy cream: [coconut cream, coconut milk, evaporated milk, half-and-half, milk, cream cheese]
+  half-and-half: [milk, heavy cream, evaporated milk]
+  sour cream: [yogurt, greek yogurt, cream cheese, mayonnaise]
+  buttermilk: [yogurt, milk, sour cream]
+  cream cheese: [mascarpone, ricotta cheese, sour cream, yogurt]
+  sugar: [honey, maple syrup, brown sugar, agave nectar]
+  honey: [maple syrup, agave nectar, sugar, corn syrup]
+  vegetable oil: [olive oil, canola oil, butter, applesauce, coconut oil]
+  all-purpose flour: [whole wheat flour, rice flour, almond flour, oat flour, cake flour]
+  mayonnaise: [sour cream, yogurt, greek yogurt]
+  chicken broth: [vegetable broth, chicken stock, water]
+  white wine: [chicken broth, white wine vinegar, lemon juice]
+  lemon juice: [lime juice, white wine vinegar, vinegar]
+  parmesan cheese: [romano cheese, pecorino romano, nutritional yeast]
+
+# What usually changes when the ingredient is removed (general cooking knowledge).
+# The chatbot labels this "predicted", never "supported by the dataset".
+removal_effects:
+  egg: "Eggs bind, help the mixture rise and add moisture and richness. Without them the result is usually denser, more crumbly or less risen unless a substitute takes over those jobs."
+  butter: "Butter adds fat, richness and flavor and makes baked goods tender. Without it the result is usually less rich and may taste different or be drier."
+  milk: "Milk is mostly liquid with some fat and sugar. Without it the mixture needs another liquid; the result may be less rich and brown less."
+  heavy cream: "Cream adds fat and richness and thickens sauces. Without it a sauce is usually thinner and less rich unless another fat or thickener is added."
+  sour cream: "Sour cream adds moisture, tang and richness. Without it the result may be drier and less tangy."
+  buttermilk: "Buttermilk adds acid and moisture and tenderizes. Without it the crumb may be less tender and the flavor less tangy."
+  cream cheese: "Cream cheese adds richness, tang and a firm creamy body. Without it fillings and frostings are usually softer and less tangy."
+  all-purpose flour: "Flour gives structure and thickens. Replacing it usually changes the texture a lot: denser, more crumbly or gummier results are common."
+  sugar: "Sugar adds sweetness, moisture and tenderness and helps browning. Without it the result is less sweet, paler and may be drier or tougher."
+  honey: "Honey adds sweetness, moisture and a distinct flavor. Without it the result may be less sweet and less moist."
+  vegetable oil: "Oil adds fat and moisture and keeps baked goods tender. Without it the result may be drier or firmer."
+  mayonnaise: "Mayonnaise adds fat, moisture and a little tang. Without it the result may be drier and less rich."
