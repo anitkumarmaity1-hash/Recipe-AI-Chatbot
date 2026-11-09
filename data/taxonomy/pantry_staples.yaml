@@ -1,0 +1,17 @@
+# Pantry staples (Step 10, ingredient matching).
+# A staple the user did NOT list is assumed to be at home: it is shown in the
+# answer but never counted as an "extra needed" ingredient and never lowers the
+# score. If the user lists a staple (for example "salt"), it is matched like
+# any other ingredient.
+# Names must be canonical names from recipe_ingredient (check with:
+#   python -m recipebot.tools.stats count --all-of salt).
+# Edit this list and rerun the chat; nothing needs rebuilding.
+staples:
+  - salt
+  - kosher salt
+  - black pepper
+  - pepper
+  - water
+  - olive oil
+  - extra-virgin olive oil
+  - vegetable oil

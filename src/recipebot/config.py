@@ -44,6 +44,20 @@ MAX_RESULT_K: int = 20           # upper limit for "show me N recipes"
 DEFAULT_TOP_K: int = 10
 CONVERSATION_DIR: Path = PROJECT_ROOT / "docs" / "conversations"
 
+# ---- Ingredient matching, Task 2 (Step 10): change a value and rerun ----------
+# Score = W_COVERAGE * coverage - W_EXTRA * extra_ratio - W_STEPS * min(steps, STEP_CAP)
+#   coverage    = matched / number of ingredients the user listed
+#   extra_ratio = extra needed / ingredients the recipe needs (pantry staples not counted)
+# The weights are design choices, not measured values; see docs/MATCHING.md.
+MATCH_W_COVERAGE: float = 4.0
+MATCH_W_EXTRA: float = 2.0
+MATCH_W_STEPS: float = 0.1
+# steps beyond this add no further penalty (a 286-step outlier must not dominate)
+MATCH_STEP_CAP: int = 30
+# a recipe must use at least this many of the user's ingredients
+MATCH_MIN_MATCHED: int = 1
+PANTRY_STAPLES_PATH: Path = TAXONOMY_DIR / "pantry_staples.yaml"
+
 VALID_BACKENDS: tuple[str, ...] = ("gemini", "lora")
 UNDERSTANDING_BACKEND: str = os.getenv(
     "UNDERSTANDING_BACKEND", "gemini").strip().lower()

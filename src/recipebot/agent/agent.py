@@ -1,11 +1,11 @@
 """The agent loop (Step 9): one user message in, one grounded answer out.
 
     message -> [keyword refusal] -> understand (LLM) -> merge into SessionState
-            -> deterministic tool (search | stats | details) -> composer -> guard
+            -> deterministic tool (search | match | stats | details) -> composer -> guard
 
 The model only produces an Understanding. Every fact, number and recipe id
 comes from DuckDB through the tools; the guard re-checks the final text.
-Intents that are not built yet (match, substitute) say so honestly.
+Intents that are not built yet (substitute) say so honestly.
 """
 
 from __future__ import annotations
@@ -19,13 +19,14 @@ from typing import Any, Callable, Protocol
 import numpy as np
 
 from recipebot import config
-from recipebot.agent import composer
+from recipebot.agent import composer, match_composer
 from recipebot.agent.guard import check_reply
 from recipebot.agent.state import SessionState, label
 from recipebot.data_loading import SOURCE_LABELS
 from recipebot.normalization.steps import split_steps
 from recipebot.retrieval.masks import Constraints
 from recipebot.schemas import Intent, StatType, Understanding, UnderstandingError
+from recipebot.tools.matching import RecipeMatcher
 from recipebot.tools.stats import (
     CONTAINS_DEFINITION,
     STEP_RULE,
@@ -70,7 +71,8 @@ class _Draft:
 
 class RecipeAgent:
     def __init__(self, retriever, understander: Understander, mapper: RestrictionMapper,
-                 *, default_k: int = config.DEFAULT_RESULT_K, max_k: int = config.MAX_RESULT_K):
+                 *, default_k: int = config.DEFAULT_RESULT_K, max_k: int = config.MAX_RESULT_K,
+                 matcher: RecipeMatcher | None = None):
         self.retriever = retriever
         self.con = retriever.con
         self.stats = retriever.stats
@@ -80,13 +82,15 @@ class RecipeAgent:
         self.max_k = max_k
         self.state = SessionState()
         self._steps: np.ndarray | None = None
+        # built on first use when not given (Step 10)
+        self._matcher = matcher
         self._handlers: dict[Intent, Callable[[Understanding, list[str]], _Draft]] = {
             Intent.SEARCH: self._search,
-            Intent.REFINE: self._search,
+            Intent.REFINE: self._refine,
             Intent.STATS: self._stats,
             Intent.SHOW_DETAILS: self._details,
             Intent.CLEAR_FILTERS: self._clear,
-            Intent.MATCH: lambda u, c: self._not_built("Ingredient matching (Task 2)", 10, c),
+            Intent.MATCH: self._match,
             Intent.SUBSTITUTE: lambda u, c: self._not_built("Ingredient substitution (Task 3)", "11 and 12", c),
             Intent.UNSUPPORTED: self._unsupported,
         }
@@ -141,9 +145,21 @@ class RecipeAgent:
                           tool=draft.tool, payload=draft.payload, timings_ms=timings,
                           guard_problems=problems)
 
+    @property
+    def matcher(self) -> RecipeMatcher:
+        if self._matcher is None:
+            self._matcher = RecipeMatcher(self.con, self.stats)
+        return self._matcher
+
     # ------------------------------------------------------------------
     # Search and refine
     # ------------------------------------------------------------------
+    def _refine(self, u: Understanding, changes: list[str]) -> _Draft:
+        """A refinement re-runs whatever the user was doing: a text search or an ingredient match."""
+        if self.state.mode == "match" and self.state.available:
+            return self._match(u, changes)
+        return self._search(u, changes)
+
     def _search(self, u: Understanding, changes: list[str]) -> _Draft:
         st = self.state
         if not st.last_query:
@@ -167,6 +183,33 @@ class RecipeAgent:
         text = composer.compose_search(res, st.unenforced, info, changes)
         return _Draft(text, "search", res.to_dict(), {h.id for h in res.hits},
                       [composer.fmt_int(res.n_allowed), composer.fmt_int(res.n_total)])
+
+    # ------------------------------------------------------------------
+    # Ingredient matching (Task 2)
+    # ------------------------------------------------------------------
+    def _match(self, u: Understanding, changes: list[str]) -> _Draft:
+        st = self.state
+        if not st.available:
+            return _Draft("\n".join([*changes, "Which ingredients do you have? For example: "
+                                     "'I have eggs, flour and milk'."]))
+        constraints = st.constraints()
+        mask, mask_sql = self.retriever.allowed_mask(constraints)
+        k = min(u.k or self.default_k, self.max_k)
+        res = self.matcher.match(
+            st.available, constraints, mask, mask_sql, k=k)
+
+        problems = [*self.retriever.verify(res.hits, constraints),   # hard constraints, re-checked
+                    # SQL numbers vs listed evidence
+                    *self.matcher.verify(res)]
+        if problems:
+            logger.error("match verification failed: %s", problems)
+            return _Draft("Results withheld: an independent check failed, so nothing is shown. "
+                          + "; ".join(problems), tool="match", payload=res.to_dict())
+
+        st.set_results(res.hits)
+        text = match_composer.compose_match(res, st.unenforced, changes)
+        return _Draft(text, "match", res.to_dict(), {h.id for h in res.hits},
+                      match_composer.expected_numbers(res))
 
     def _hit_info(self, row_idxs: list[int]) -> dict[int, tuple[int, int]]:
         if not row_idxs:
@@ -324,9 +367,11 @@ class RecipeAgent:
 
     def _not_built(self, name: str, step: int | str, changes: list[str]) -> _Draft:
         return _Draft(f"{name} is not built yet (plan Step {step}). Right now I can search recipes, "
-                      "answer statistics about the dataset and show a recipe's ingredients and steps.")
+                      "match recipes to your ingredients, answer statistics about the dataset and show a "
+                      "recipe's ingredients and steps.")
 
     def _unsupported(self, u: Understanding, changes: list[str]) -> _Draft:
         why = f" ({u.reason})" if u.reason else ""
         return _Draft(f"I cannot answer that from the Recipe Box dataset{why}. I can search recipes, "
-                      "answer statistics about them, and show a recipe's ingredients and steps.")
+                      "match them to your ingredients, answer statistics about them, and show a "
+                      "recipe's ingredients and steps.")

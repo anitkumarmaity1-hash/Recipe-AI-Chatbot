@@ -4,7 +4,7 @@ A grounded conversational recipe assistant over the Recipe Box dataset (~125k re
 The LLM only interprets questions and words answers; all facts, counts, filtering,
 ranking and validation are computed deterministically from the data.
 
-> Work in progress. Search, statistics and recipe details work in a command-line chat. Ingredient matching, substitution and the web UI are not built yet.
+> Work in progress. Search, ingredient matching, statistics and recipe details work in a command-line chat. Substitution and the web UI are not built yet.
 
 ## Quick start (Windows PowerShell)
 
@@ -36,6 +36,8 @@ Chat in the terminal (needs the database, both indexes and a filled `.env`):
 
     python -m recipebot.cli
     python -m recipebot.cli --debug --save docs/conversations/01_pasta_dairy.md
+
+Example ingredient match (then try `Exclude eggs too`): `I have eggs, onions and tomatoes, no peanuts, under 6 steps`. How the ranking works: `docs/MATCHING.md`.
 
 Commands inside the chat: `/help`, `/state`, `/reset`, `/debug`, `/quit`.
 

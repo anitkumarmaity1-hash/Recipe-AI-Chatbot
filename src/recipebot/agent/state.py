@@ -9,6 +9,9 @@ Pure Python, no database, no model. Rules (also written in docs/DESIGN.md):
     recipes have no dairy?" is a one-off question, not a new restriction.
   * Phrases we cannot enforce (for example "vegan") are remembered separately
     and always reported, never silently dropped.
+  * Step 10: `available` (the ingredients the user has) and `mode` ("search" or
+    "match") are remembered, so "Exclude eggs too" after an ingredient match
+    re-runs the MATCH, not a text search. `available` survives clear_filters.
 """
 
 from __future__ import annotations
@@ -51,6 +54,10 @@ class SessionState:
     include: list[str] = field(default_factory=list)       # this search only
     max_steps: int | None = None                          # this search only
     unenforced: list[str] = field(default_factory=list)   # e.g. ["vegan"]
+    # Step 10: ingredients the user has
+    available: list[str] = field(default_factory=list)
+    # Step 10: "search" or "match"
+    mode: str = "search"
     last_query: str | None = None
     last_results: list[dict[str, Any]] = field(default_factory=list)
     active_recipe: dict[str, str] | None = None
@@ -117,27 +124,41 @@ class SessionState:
                     f"Cannot enforce: '{name}' (not something ingredient lists can prove).")
 
         if u.intent is Intent.SEARCH:                       # 3. one-search settings
-            if self.include or self.max_steps is not None:
-                changes.append("New search: the previous 'must contain' list and step limit were reset; "
-                               "allergen and ingredient exclusions stay.")
-            self.include = list(u.include)
-            self.max_steps = u.max_steps
+            self.mode = "search"
+            self._start_new_search(u, changes)
             query = u.dish_query or " ".join(u.include)
             if query:
                 self.last_query = query
+        elif u.intent is Intent.MATCH:
+            self.mode = "match"
+            if u.available:                                 # a new list starts a new match
+                self.available = list(u.available)
+                self._start_new_search(u, changes)
+            else:                                           # "what can I cook?" keeps the list
+                self._merge_one_search_settings(u)
         else:
-            for term in u.include:
-                _add(self.include, term)
-            if u.max_steps is not None:
-                self.max_steps = u.max_steps
+            self._merge_one_search_settings(u)
             if u.dish_query:
                 self.last_query = u.dish_query
         return changes
 
+    def _start_new_search(self, u: Understanding, changes: list[str]) -> None:
+        if self.include or self.max_steps is not None:
+            changes.append("New search: the previous 'must contain' list and step limit were reset; "
+                           "allergen and ingredient exclusions stay.")
+        self.include = list(u.include)
+        self.max_steps = u.max_steps
+
+    def _merge_one_search_settings(self, u: Understanding) -> None:
+        for term in u.include:
+            _add(self.include, term)
+        if u.max_steps is not None:
+            self.max_steps = u.max_steps
+
     # ------------------------------------------------------------------
     def to_prompt_state(self) -> dict[str, Any]:
         """The compact state sent to the understanding model (shape documented in prompt.py)."""
-        return {
+        state = {
             "active_filters": {
                 "include": list(self.include),
                 "exclude": [label(a) for a in self.exclude_allergens] + list(self.exclude_ingredients),
@@ -146,3 +167,6 @@ class SessionState:
             "last_results": list(self.last_results),
             "active_recipe": dict(self.active_recipe) if self.active_recipe else None,
         }
+        if self.available:          # Step 10: lets the model keep and extend the list
+            state["available"] = list(self.available)
+        return state

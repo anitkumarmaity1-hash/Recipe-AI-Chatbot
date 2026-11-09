@@ -1,4 +1,4 @@
-"""Tests for the agent loop (Step 9): tiny database, real BM25/FAISS built from it,
+"""Tests for the agent loop (Steps 9 and 10): tiny database, real BM25/FAISS built from it,
 a fake hash encoder and a scripted "language model". No network, no real data.
 """
 
@@ -10,12 +10,14 @@ import pytest
 
 from recipebot.agent.agent import RecipeAgent
 from recipebot.normalization.allergens import AllergenMatcher
+from recipebot.normalization.ingredients import IngredientNormalizer
 from recipebot.retrieval.bm25 import Bm25Index, build_bm25
 from recipebot.retrieval.common import ids_fingerprint, tokenize
 from recipebot.retrieval.embeddings import SemanticIndex, build_embeddings
 from recipebot.retrieval.hybrid import HybridRetriever
 from recipebot.retrieval.masks import AllergenFlags
 from recipebot.schemas import Intent, StatType, Understanding, UnderstandingError
+from recipebot.tools.matching import RecipeMatcher
 from recipebot.tools.stats import RecipeStats
 from recipebot.understanding.restrictions import RestrictionMapper
 
@@ -55,15 +57,16 @@ def make_db(path):
     con.execute("CREATE TABLE recipe_stats (row_idx INTEGER, id VARCHAR, n_ingredients INTEGER, "
                 "n_lines INTEGER, n_steps INTEGER)")
     con.execute("CREATE TABLE recipe_ingredient (recipe_id VARCHAR, row_idx INTEGER, position INTEGER, "
-                "name_index INTEGER, canonical VARCHAR)")
+                "name_index INTEGER, raw_line VARCHAR, canonical VARCHAR, canonical_base VARCHAR, "
+                "alternatives VARCHAR[])")
     for row_idx, rid, title, lines, names, text, steps in RECIPES:
         con.execute("INSERT INTO recipes VALUES (?, ?, 'ar', ?, ?, ?)", [
                     rid, row_idx, title, lines, text])
         con.execute("INSERT INTO recipe_stats VALUES (?, ?, ?, ?, ?)", [
                     row_idx, rid, len(names), len(lines), steps])
         for pos, canon in enumerate(names):
-            con.execute("INSERT INTO recipe_ingredient VALUES (?, ?, ?, 0, ?)", [
-                        rid, row_idx, pos, canon])
+            con.execute("INSERT INTO recipe_ingredient VALUES (?, ?, ?, 0, ?, ?, ?, [])", [
+                        rid, row_idx, pos, lines[pos], canon, canon])
     con.close()
     return path
 
@@ -113,10 +116,12 @@ def make_agent(tmp_path):
                                 SemanticIndex.load(idx, encoder=fake_encoder),
                                 RecipeStats(con, variants={}), flags, AllergenMatcher(TAXONOMY), pool_size=50)
     mapper = RestrictionMapper(TERMS, known_allergens=TAXONOMY.keys())
+    matcher = RecipeMatcher(con, retriever.stats, staples=["water", "salt"],
+                            normalizer=IngredientNormalizer({}))
 
     def build(*script):
         model = Scripted(*script)
-        return RecipeAgent(retriever, model, mapper, default_k=5), model
+        return RecipeAgent(retriever, model, mapper, default_k=5, matcher=matcher), model
 
     yield build
     con.close()
@@ -304,11 +309,99 @@ def test_model_failure_changes_nothing_and_is_explained(make_agent):
     assert agent.state.exclude_allergens == ["dairy"]
 
 
-def test_match_and_substitute_are_honest_placeholders(make_agent):
-    agent, _ = make_agent(U("match", available=["eggs"]), U(
-        "substitute", ingredient_to_replace="butter"))
-    assert "not built yet" in agent.handle("I have eggs").text
+def test_substitute_is_still_an_honest_placeholder(make_agent):
+    agent, _ = make_agent(U("substitute", ingredient_to_replace="butter"))
     assert "not built yet" in agent.handle("replace the butter").text
+
+
+# ---- ingredient matching (Task 2, Step 10) ------------------------------------------
+def match_ids(reply):
+    return [h["id"] for h in reply.payload["hits"]]
+
+
+def test_match_ranks_and_explains_matched_missing_extra_and_steps(make_agent):
+    agent, _ = make_agent(U("match", available=["garlic", "tomato"]))
+    reply = agent.handle("I have garlic and tomatoes")
+    assert reply.guard_problems == [] and reply.tool == "match"
+    # hand-computed scores: a:5 2.73, a:2 0.60, a:1 0.37, a:6 -0.13  (see docs/MATCHING.md)
+    assert match_ids(reply) == ["a:5", "a:2", "a:1", "a:6"]
+    top = reply.payload["hits"][0]
+    assert top["matched"] == ["garlic", "tomato"] and top["extra"] == [
+        "pasta"] and top["n_steps"] == 6
+    assert top["score"] == pytest.approx(4 * 1 - 2 * (1 / 3) - 0.1 * 6)
+    soup = reply.payload["hits"][1]
+    assert soup["unused"] == ["garlic"] and soup["extra"] == [
+        "onion"] and soup["staples"] == ["water"]
+    assert "Matched (2 of 2): garlic, tomato" in reply.text
+    assert "Extra needed" in reply.text and "Pantry staples assumed, not scored: water" in reply.text
+    assert "Recipes using at least one of your ingredients: 4 of 6." in reply.text
+    assert "Quantities: Ingredient names match, but quantity sufficiency could not be verified" in reply.text
+    assert [r["id"] for r in agent.state.last_results] == match_ids(reply)
+
+
+def test_exclude_follow_up_reruns_the_match_and_persists(make_agent):
+    agent, _ = make_agent(U("match", available=["garlic", "tomato"]),
+                          U("refine", exclude=["onion"]),
+                          U("refine", exclude=["dairy"]))
+    agent.handle("I have garlic and tomatoes")
+    second = agent.handle("Exclude onion too")
+    assert second.tool == "match" and match_ids(second) == ["a:5", "a:1"]
+    assert "none of onion among" not in second.text and "no onion (ingredient)" in second.text
+    third = agent.handle("and no dairy")
+    assert match_ids(third) == ["a:5"]                        # a:1 has butter
+    assert "no onion (ingredient)" in third.text and "no dairy (allergen check)" in third.text
+    assert agent.state.mode == "match"
+
+
+def test_max_steps_is_a_hard_constraint_for_matching(make_agent):
+    agent, _ = make_agent(
+        U("match", available=["garlic", "tomato"], max_steps=4))
+    reply = agent.handle("garlic and tomato, at most 4 steps")
+    assert match_ids(reply) == ["a:2", "a:1"]
+    assert all(h["n_steps"] <= 4 for h in reply.payload["hits"])
+    assert "Of these, 2 pass the hard filters" in reply.text
+
+
+def test_an_excluded_ingredient_the_user_also_has_is_not_counted_and_is_said(make_agent):
+    agent, _ = make_agent(U("match", available=["tomato", "onion"]),
+                          U("refine", exclude=["onion"]))
+    agent.handle("I have tomato and onion")
+    reply = agent.handle("no onion")
+    assert reply.payload["terms"] == [
+        "tomato"] and reply.payload["dropped"] == ["onion"]
+    assert "Not counted: 'onion'" in reply.text
+    assert not any("a:2" == h["id"] or "a:6" == h["id"]
+                   for h in reply.payload["hits"])
+
+
+def test_an_unknown_ingredient_is_reported_not_ignored(make_agent):
+    agent, _ = make_agent(U("match", available=["tomato", "unobtainium"]))
+    reply = agent.handle("tomato and unobtainium")
+    assert "Not recognized, ignored: 'unobtainium'" in reply.text
+    assert reply.payload["terms"] == ["tomato"] and reply.payload["hits"]
+
+
+def test_match_with_no_eligible_recipe_says_so_and_relaxes_nothing(make_agent):
+    agent, _ = make_agent(U("match", available=["rice"]))
+    # the only rice recipe has 0 steps
+    reply = agent.handle("I have rice")
+    assert reply.payload["hits"] == [] and reply.payload["n_candidates"] == 1
+    assert "nothing was relaxed" in reply.text and "Of these, 0 pass" in reply.text
+
+
+def test_match_without_ingredients_asks_for_them(make_agent):
+    agent, _ = make_agent(U("match"))
+    assert "Which ingredients do you have?" in agent.handle(
+        "what can I cook?").text
+
+
+def test_a_new_text_search_leaves_match_mode(make_agent):
+    agent, _ = make_agent(U("match", available=["garlic"]), U("search", dish_query="tomato soup"),
+                          U("refine", exclude=["dairy"]))
+    assert agent.handle("I have garlic").tool == "match"
+    assert agent.handle("tomato soup please").tool == "search"
+    # refine follows the current mode
+    assert agent.handle("no dairy").tool == "search"
 
 
 def test_clear_filters_empties_the_restrictions(make_agent):

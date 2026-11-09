@@ -6,7 +6,8 @@ JSON payload: {"session_state": {...}, "user_message": "..."}.
 session_state is built by the agent (Step 9) and has this shape:
   {"active_filters": {"include": [...], "exclude": [...], "max_steps": 8},
    "last_results": [{"n": 1, "id": "ar:abc", "title": "Banana Bread"}, ...],
-   "active_recipe": {"id": "ar:abc", "title": "Banana Bread"} or null}
+   "active_recipe": {"id": "ar:abc", "title": "Banana Bread"} or null,
+   "available": ["egg", "flour"]}            (only present after an ingredient match)
 
 Every example below is parsed by Understanding.from_dict in a test, so the
 prompt can never teach the model an invalid output.
@@ -39,8 +40,8 @@ and "none" for an empty choice.
 
 intent (choose one):
 - search: find recipes for a dish or need.
-- refine: change the filters of the current search (add or remove a restriction,
-  limit the steps) without naming a new dish.
+- refine: change the filters of the current search or ingredient match (add or
+  remove a restriction, limit the steps) without naming a new dish.
 - stats: a question about the whole dataset (how many, what percentage, average
   or median number of ingredients, most common ingredients, fewest steps).
 - match: the user lists ingredients they HAVE and asks what to cook.
@@ -60,7 +61,9 @@ Slots:
   "gluten". Never put dish words here.
 - allow: restrictions the user now removes ("dairy is fine now").
 - max_steps: a whole number if the user limits the number of steps, else 0.
-- available: ingredients the user has (match intent).
+- available: ALL the ingredients the user has right now (match intent). If
+  session_state.available already lists some, keep them, add the new ones and
+  remove any the user says they no longer have.
 - stat_type (stats only): count, percentage, ingredient_count_summary,
   top_ingredients or fewest_steps. k: how many items the user asked for, else 0.
 - target_recipe_id: copy an id from session_state (last_results or
@@ -92,6 +95,12 @@ EXAMPLES: list[tuple[dict[str, Any], str, dict[str, Any]]] = [
      {"intent": "stats", "stat_type": "fewest_steps", "include": ["tomato"], "k": 5}),
     ({}, "I have chicken, rice and broccoli. What can I cook?",
      {"intent": "match", "available": ["chicken", "rice", "broccoli"]}),
+    ({"active_filters": {"exclude": ["peanuts"]}, "available": ["egg", "flour"]},
+     "I also have milk.",
+     {"intent": "match", "available": ["egg", "flour", "milk"]}),
+    ({"active_filters": {"exclude": ["peanuts"]}, "available": ["egg", "flour", "milk"]},
+     "Exclude eggs too.",
+     {"intent": "refine", "exclude": ["eggs"]}),
     ({"last_results": [{"n": 1, "id": "ar:1", "title": "Banana Bread"},
                        {"n": 2, "id": "ar:2", "title": "Zucchini Bread"}]},
      "Replace the butter in the second one.",
