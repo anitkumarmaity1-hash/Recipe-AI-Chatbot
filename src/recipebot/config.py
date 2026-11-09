@@ -36,6 +36,14 @@ GEMINI_TIMEOUT_SECONDS: float = float(
 # NEW: extra tries on 429/5xx
 GEMINI_MAX_RETRIES: int = int(os.getenv("GEMINI_MAX_RETRIES", "2"))
 
+# ---- Agent settings (Step 9): change a value here and rerun ------------------
+# recipes shown per search when the user gives no number
+DEFAULT_RESULT_K: int = 5
+MAX_RESULT_K: int = 20           # upper limit for "show me N recipes"
+# "most common ingredients" when the user gives no number
+DEFAULT_TOP_K: int = 10
+CONVERSATION_DIR: Path = PROJECT_ROOT / "docs" / "conversations"
+
 VALID_BACKENDS: tuple[str, ...] = ("gemini", "lora")
 UNDERSTANDING_BACKEND: str = os.getenv(
     "UNDERSTANDING_BACKEND", "gemini").strip().lower()

@@ -4,7 +4,7 @@ A grounded conversational recipe assistant over the Recipe Box dataset (~125k re
 The LLM only interprets questions and words answers; all facts, counts, filtering,
 ranking and validation are computed deterministically from the data.
 
-> Work in progress. The agent loop, matching, substitution and UI are not built yet.
+> Work in progress. Search, statistics and recipe details work in a command-line chat. Ingredient matching, substitution and the web UI are not built yet.
 
 ## Quick start (Windows PowerShell)
 
@@ -31,6 +31,13 @@ ranking and validation are computed deterministically from the data.
 Set up the language model once: copy `.env.example` to `.env`, put your key in `GEMINI_API_KEY` (never commit it), then:
 
     python -m recipebot.understanding.backend "I cannot have dairy"
+
+Chat in the terminal (needs the database, both indexes and a filled `.env`):
+
+    python -m recipebot.cli
+    python -m recipebot.cli --debug --save docs/conversations/01_pasta_dairy.md
+
+Commands inside the chat: `/help`, `/state`, `/reset`, `/debug`, `/quit`.
 
 The first query with `--exclude-allergen` scans all ingredient lines once and caches the result in `data/index/allergen_flags.npz`.
 Details of every design decision: `docs/DESIGN.md`. AI tools used: `AI_USAGE.md`.
