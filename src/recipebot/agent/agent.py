@@ -5,7 +5,7 @@
 
 The model only produces an Understanding. Every fact, number and recipe id
 comes from DuckDB through the tools; the guard re-checks the final text.
-Intents that are not built yet (substitute) say so honestly.
+Substitution (Task 3, Step 12) mines evidence, builds an adapted copy and validates it.
 """
 
 from __future__ import annotations
@@ -19,14 +19,17 @@ from typing import Any, Callable, Protocol
 import numpy as np
 
 from recipebot import config
-from recipebot.agent import composer, match_composer
+from recipebot.agent import composer, match_composer, substitution_composer
 from recipebot.agent.guard import check_reply
 from recipebot.agent.state import SessionState, label
 from recipebot.data_loading import SOURCE_LABELS
 from recipebot.normalization.steps import split_steps
+from recipebot.retrieval.common import tokenize
 from recipebot.retrieval.masks import Constraints
 from recipebot.schemas import Intent, StatType, Understanding, UnderstandingError
+from recipebot.tools.adaptation import adapt, choose_candidate, validate_adaptation
 from recipebot.tools.matching import RecipeMatcher
+from recipebot.tools.substitution import SubstitutionError, SubstitutionMiner
 from recipebot.tools.stats import (
     CONTAINS_DEFINITION,
     STEP_RULE,
@@ -72,7 +75,7 @@ class _Draft:
 class RecipeAgent:
     def __init__(self, retriever, understander: Understander, mapper: RestrictionMapper,
                  *, default_k: int = config.DEFAULT_RESULT_K, max_k: int = config.MAX_RESULT_K,
-                 matcher: RecipeMatcher | None = None):
+                 matcher: RecipeMatcher | None = None, miner: SubstitutionMiner | None = None):
         self.retriever = retriever
         self.con = retriever.con
         self.stats = retriever.stats
@@ -84,6 +87,8 @@ class RecipeAgent:
         self._steps: np.ndarray | None = None
         # built on first use when not given (Step 10)
         self._matcher = matcher
+        # built on first use when not given (Step 12)
+        self._miner = miner
         self._handlers: dict[Intent, Callable[[Understanding, list[str]], _Draft]] = {
             Intent.SEARCH: self._search,
             Intent.REFINE: self._refine,
@@ -91,7 +96,7 @@ class RecipeAgent:
             Intent.SHOW_DETAILS: self._details,
             Intent.CLEAR_FILTERS: self._clear,
             Intent.MATCH: self._match,
-            Intent.SUBSTITUTE: lambda u, c: self._not_built("Ingredient substitution (Task 3)", "11 and 12", c),
+            Intent.SUBSTITUTE: self._substitute,
             Intent.UNSUPPORTED: self._unsupported,
         }
 
@@ -155,9 +160,11 @@ class RecipeAgent:
     # Search and refine
     # ------------------------------------------------------------------
     def _refine(self, u: Understanding, changes: list[str]) -> _Draft:
-        """A refinement re-runs whatever the user was doing: a text search or an ingredient match."""
+        """A refinement re-runs whatever the user was doing: a text search, an ingredient match or a substitution."""
         if self.state.mode == "match" and self.state.available:
             return self._match(u, changes)
+        if self.state.mode == "substitute" and self.state.substitution:
+            return self._substitute(u, changes)
         return self._search(u, changes)
 
     def _search(self, u: Understanding, changes: list[str]) -> _Draft:
@@ -195,8 +202,6 @@ class RecipeAgent:
         constraints = st.constraints()
         mask, mask_sql = self.retriever.allowed_mask(constraints)
         k = min(u.k or self.default_k, self.max_k)
-        # Step 10b: the retriever's allergen matcher also drops listed ingredients an
-        # excluded allergen covers ("eggs" while "no egg" is active)
         res = self.matcher.match(
             st.available, constraints, mask, mask_sql, k=k,
             allergen_matcher=self.retriever.matcher)
@@ -363,15 +368,105 @@ class RecipeAgent:
         return warnings
 
     # ------------------------------------------------------------------
+    # Ingredient substitution (Task 3)
+    # ------------------------------------------------------------------
+    @property
+    def miner(self) -> SubstitutionMiner:
+        if self._miner is None:
+            self._miner = SubstitutionMiner(self.con, self.stats, staples=self.matcher.staples,
+                                            allergen_matcher=self.retriever.matcher)
+        return self._miner
+
+    def _resolve_recipe(self, u: Understanding, notes: list[str]) -> tuple[str, str] | str:
+        """The original recipe as (id, title), or a message string when none can be found.
+
+        Order: an id from the session > the active recipe if it fits the named dish >
+        the best search match for the named dish (said in the answer) > the active recipe.
+        """
+        st = self.state
+        active = st.active_recipe
+        if u.target_recipe_id:
+            row = self.con.execute("SELECT title FROM recipes WHERE id = ?",
+                                   [u.target_recipe_id]).fetchone()
+            if row is None:
+                return f"I have no recipe with the id '{u.target_recipe_id}'."
+            return u.target_recipe_id, row[0]
+        query = u.target_recipe_title or u.dish_query
+        if query:
+            words = set(tokenize(query))
+            if active and words and words <= set(tokenize(active["title"])):
+                return active["id"], active["title"]
+            # no restrictions: the original may contain the thing the user wants to remove
+            res = self.retriever.search(query, Constraints(), k=1)
+            if not res.hits:
+                return f"I could not find a recipe for '{query}'."
+            hit = res.hits[0]
+            notes.append(f"No recipe id was given, so I used the best search match for "
+                         f"'{query}': {hit.title} [{hit.id}]. Say so if you meant another one.")
+            return hit.id, hit.title
+        if active:
+            return active["id"], active["title"]
+        return "Which recipe? Search first, then say 'replace the butter in the second one'."
+
+    def _substitute(self, u: Understanding, changes: list[str]) -> _Draft:
+        st = self.state
+        notes: list[str] = []
+        if u.intent is Intent.REFINE and st.substitution:     # "no nuts either" re-runs it
+            recipe_id, ingredient = st.substitution["recipe_id"], st.substitution["ingredient"]
+        else:
+            found = self._resolve_recipe(u, notes)
+            if isinstance(found, str):
+                return _Draft("\n".join([*changes, found]))
+            recipe_id, title = found
+            ingredient = u.ingredient_to_replace
+            if not ingredient:
+                names = [r[0] for r in self.con.execute(
+                    "SELECT DISTINCT canonical_base FROM recipe_ingredient WHERE recipe_id = ? "
+                    "ORDER BY 1", [recipe_id]).fetchall()]
+                return _Draft("\n".join([*changes, f"Which ingredient should I replace in {title} "
+                                         f"[{recipe_id}]? Its ingredients: {', '.join(names)}."]),
+                              ids={recipe_id})
+
+        # "must contain" belongs to one search, so it is not applied to substitution evidence
+        constraints = Constraints(exclude=tuple(st.exclude_ingredients),
+                                  exclude_allergens=tuple(
+                                      st.exclude_allergens),
+                                  max_steps=st.max_steps)
+        mask, mask_sql = self.retriever.allowed_mask(constraints)
+        try:
+            ev = self.miner.mine(recipe_id, ingredient,
+                                 constraints, mask, mask_sql)
+        except SubstitutionError as exc:
+            return _Draft("\n".join([*changes, *notes, str(exc)]), ids={recipe_id})
+
+        chosen = choose_candidate(ev)
+        adapted = (adapt(ev, chosen, constraints,
+                   self.retriever.matcher) if chosen else None)
+        problems = self.miner.verify(ev, constraints)
+        if adapted:
+            problems += validate_adaptation(adapted,
+                                            ev, constraints, self.retriever.matcher)
+        payload = {"evidence": ev.to_dict(), "adapted": adapted.to_dict()
+                   if adapted else None}
+        if problems:
+            logger.error("substitution verification failed: %s", problems)
+            return _Draft("Results withheld: an independent check failed, so no adapted recipe is "
+                          "shown. " + "; ".join(problems), tool="substitute", payload=payload)
+
+        st.active_recipe = {
+            "id": ev.original["id"], "title": ev.original["title"]}
+        st.mode = "substitute"
+        st.substitution = {"recipe_id": recipe_id, "ingredient": ingredient}
+        text = substitution_composer.compose_substitution(
+            ev, adapted, chosen, st.unenforced, changes, notes)
+        ids = substitution_composer.cited_ids(ev)
+        return _Draft(text, "substitute", payload, ids, substitution_composer.expected_numbers(ev))
+
+    # ------------------------------------------------------------------
     # Small intents
     # ------------------------------------------------------------------
     def _clear(self, u: Understanding, changes: list[str]) -> _Draft:
         return _Draft("All restrictions cleared. Tell me what you would like to search for.")
-
-    def _not_built(self, name: str, step: int | str, changes: list[str]) -> _Draft:
-        return _Draft(f"{name} is not built yet (plan Step {step}). Right now I can search recipes, "
-                      "match recipes to your ingredients, answer statistics about the dataset and show a "
-                      "recipe's ingredients and steps.")
 
     def _unsupported(self, u: Understanding, changes: list[str]) -> _Draft:
         why = f" ({u.reason})" if u.reason else ""

@@ -309,10 +309,6 @@ def test_model_failure_changes_nothing_and_is_explained(make_agent):
     assert agent.state.exclude_allergens == ["dairy"]
 
 
-def test_substitute_is_still_an_honest_placeholder(make_agent):
-    agent, _ = make_agent(U("substitute", ingredient_to_replace="butter"))
-    assert "not built yet" in agent.handle("replace the butter").text
-
 
 # ---- ingredient matching (Task 2, Step 10) ------------------------------------------
 def match_ids(reply):

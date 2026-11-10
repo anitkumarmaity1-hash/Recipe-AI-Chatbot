@@ -12,9 +12,12 @@ Pure Python, no database, no model. Rules (also written in docs/DESIGN.md):
   * Step 10: `available` (the ingredients the user has) and `mode` ("search" or
     "match") are remembered, so "Exclude eggs too" after an ingredient match
     re-runs the MATCH, not a text search. `available` survives clear_filters.
-  * Step 10b: a new ingredient list that still contains every ingredient of the old
-    one ("I also have rice") EXTENDS the same search: the step limit and the
-    "must contain" list are kept. Any other new list starts a new search.
+  * Step 12: after a substitution, `mode` is "substitute" and `substitution` remembers
+    which recipe and ingredient, so "no nuts either" re-runs the substitution with the
+    new restriction. A new search or match changes the mode back.
+  * Step 10b: a new ingredient list that still contains every old ingredient ("I also have
+    rice") EXTENDS the same match: the step limit and the "must contain" list are kept.
+    A list that drops an old ingredient, or the first list after a text search, is a new search.
 """
 
 from __future__ import annotations
@@ -51,20 +54,22 @@ def label(name: str) -> str:
     return name.replace("_", " ")
 
 
-def ingredient_key(text: str) -> str:
-    """Rough comparison key for the user's ingredient words: 'Tomatoes ' -> 'tomato'.
+def ingredient_key(raw: str) -> str:
+    """Lowercase, one space between words, last word singular: 'Tomatoes ' -> 'tomato'.
 
-    Only used to decide whether a new list extends the old one. A wrong guess is safe:
-    the list is then treated as a new search, which is announced to the user.
+    Only used to compare two ingredient lists; nothing is stored under this key.
     """
-    word = re.sub(r"\s+", " ", text.lower()).strip()
-    if word.endswith("ies") and len(word) > 4:
-        return word[:-3] + "y"
-    if word.endswith("oes") and len(word) > 4:
-        return word[:-2]
-    if word.endswith("s") and not word.endswith("ss") and len(word) > 3:
-        return word[:-1]
-    return word
+    words = re.sub(r"\s+", " ", raw.strip().lower()).split(" ")
+    word = words[-1]
+    if len(word) > 4 and word.endswith("ies"):
+        word = word[:-3] + "y"                      # berries -> berry
+    elif len(word) > 4 and word.endswith("oes"):
+        word = word[:-2]                            # tomatoes -> tomato
+    elif len(word) > 3 and word.endswith("s") and not word.endswith(("ss", "us", "is")):
+        # eggs -> egg, peas -> pea, glass stays
+        word = word[:-1]
+    words[-1] = word
+    return " ".join(w for w in words if w)
 
 
 @dataclass
@@ -76,8 +81,12 @@ class SessionState:
     unenforced: list[str] = field(default_factory=list)   # e.g. ["vegan"]
     # Step 10: ingredients the user has
     available: list[str] = field(default_factory=list)
-    # Step 10: "search" or "match"
+    # Step 10: "search" or "match"; Step 12: "substitute"
     mode: str = "search"
+    # Step 12: {"recipe_id": ..., "ingredient": ...} of the last substitution
+    substitution: dict[str, str] | None = None
+    # set by apply(): was the previous mode "match"? (decides extend vs new search)
+    mode_was_match: bool = False
     last_query: str | None = None
     last_results: list[dict[str, Any]] = field(default_factory=list)
     active_recipe: dict[str, str] | None = None
@@ -150,17 +159,18 @@ class SessionState:
             if query:
                 self.last_query = query
         elif u.intent is Intent.MATCH:
+            self.mode_was_match = self.mode == "match"
             self.mode = "match"
             if u.available:
-                # "I also have rice": same search
-                if self._extends_available(u.available):
-                    self.available = list(u.available)
+                extends = (self.mode_was_match and bool(self.available)
+                           and {ingredient_key(a) for a in self.available}
+                           <= {ingredient_key(a) for a in u.available})
+                self.available = list(u.available)
+                if extends:                                 # "I also have rice": same search
                     self._merge_one_search_settings(u)
-                    if self.include or self.max_steps is not None:
-                        changes.append("Ingredient list extended: your 'must contain' list "
-                                       "and step limit were kept.")
-                else:                                       # any other list starts a new match
-                    self.available = list(u.available)
+                    changes.append("Ingredient list extended: your 'must contain' list "
+                                   "and step limit were kept.")
+                else:                                       # a new list starts a new match
                     self._start_new_search(u, changes)
             else:                                           # "what can I cook?" keeps the list
                 self._merge_one_search_settings(u)
@@ -169,11 +179,6 @@ class SessionState:
             if u.dish_query:
                 self.last_query = u.dish_query
         return changes
-
-    def _extends_available(self, new: list[str]) -> bool:
-        """True when the old list is not empty and every old ingredient is still in the new one."""
-        old = {ingredient_key(x) for x in self.available}
-        return bool(old) and old <= {ingredient_key(x) for x in new}
 
     def _start_new_search(self, u: Understanding, changes: list[str]) -> None:
         if self.include or self.max_steps is not None:
