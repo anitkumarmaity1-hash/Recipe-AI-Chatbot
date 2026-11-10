@@ -20,12 +20,37 @@ The same Gemini model is asked each question once, with no database. A number is
 computed value; recipe answers count as grounded only if every cited id exists. Report: `eval/results/baseline_report.md`.
 
 ## Results of the last run
-the pass count from eval_report.md;
-the count case: what the one-shot LLM said versus your 10,062, taken from baseline_report.md;
-one sentence that the three recipe questions got no verifiable IDs from the one-shot LLM.
+**Chatbot: 10 of 11 cases passed** (`eval/results/eval_report.md`).
+
+| Task | Cases | Passed |
+|---|---|---|
+| 1 (search, statistics, refusals) | 5 | 5 |
+| 2 (ingredient matching) | 3 | 3 |
+| 3 (substitution) | 2 | 1 |
+
+**What worked:** the garlic-and-onion count (10,062 of 121,896 usable recipes, 8.3%), the fewest-steps ranking
+over all 6,012 tomato recipes with at least one step, both refusals (cooking time, calories), the no-match case,
+the "Exclude eggs too" follow-up that keeps the step limit, and the banana-bread substitution with cited evidence.
+
+**What failed:** `T3-sub-cream-pasta` (the assignment's own example). The recipe chosen for "penne pasta" also
+contained butter and parmesan, so the independent final-recipe check refused to present an adapted recipe. The
+refusal is correct, because the adapted recipe would still contain dairy, but the case still fails: the system does
+not yet pick a recipe where cream is the only dairy ingredient, or try the next candidate.
+
+**One-shot baseline (same model, no database):**
+
+| Question | One-shot LLM | Computed / chatbot |
+|---|---|---|
+| Recipes with garlic and onion | "77,104 recipes, 61.68%" | 10,062 recipes, 8.3% of 121,896 |
+| Five tomato recipes with fewest steps | five ids (`0000a6e344`, ...) that are not in the dataset's id format | ranked from the full filtered set, ids exist |
+| Match with eggs, onions, tomatoes, rice | no verifiable recipe ids | eligible ids with matched and missing ingredients |
+| Egg-free banana bread | no verifiable recipe ids | evidence ids, or an honest weak-evidence answer |
+
+The one-shot model gave a confident, wrong count and invented recipe ids. The chatbot computes the count in code
+and the output guard rejects any id that is not in the database.
 
 ## Problems found while building, and what changed
 - Replacing eggs in a 4-ingredient banana bread picked peanut butter, supported by two ice-cream recipes. Fix: same-dish-name evidence and a minimum-evidence gate (`docs/DESIGN.md` section 10).
 - "Replace the cream in a penne recipe" returned a recipe with cream cheese only and then failed. Fix: the recipe search requires the ingredient.
 - "I also have rice" dropped the step limit in an early version of matching (fixed in step 10b).
-- Known and not fixed: junk-titled recipes from the source data can appear in results; "vegan" cannot be enforced; percentages always use the whole dataset as the denominator.
+- Known and not fixed: recipe choice for substitution does not prefer recipes whose only restricted ingredient is the one being replaced (the cream failure above); a restriction added after a substitution starts a new search instead of applying to the adaptation; junk-titled recipes can still appear in some results; "vegan" cannot be enforced; percentages always use the whole dataset as the denominator.
