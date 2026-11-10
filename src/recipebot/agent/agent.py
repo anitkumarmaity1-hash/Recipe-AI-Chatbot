@@ -39,6 +39,7 @@ from recipebot.tools.stats import (
     unsupported_attribute,
 )
 from recipebot.understanding.gemini_backend import ConfigError
+from recipebot.understanding.message_hints import merge_hints
 from recipebot.understanding.restrictions import RestrictionMapper
 
 logger = logging.getLogger(__name__)
@@ -123,6 +124,10 @@ class RecipeAgent:
             return AgentReply(f"I could not understand that message ({exc}). "
                               "Nothing was changed; please rephrase.")
         timings = {"understand": 1000 * (time.perf_counter() - t0)}
+        if u.intent is Intent.SUBSTITUTE:
+            # Safety net: a restriction written in the message ("without dairy") must not depend
+            # on the model having copied it into `exclude`.
+            u.exclude = merge_hints(message, u.exclude, self.mapper)
 
         # 3. Update the session; roll back if a restriction names an unknown ingredient.
         snapshot = copy.deepcopy(self.state)
@@ -439,6 +444,19 @@ class RecipeAgent:
             return active["id"], active["title"]
         return "Which recipe? Search first, then say 'replace the butter in the second one'."
 
+    def _implied_allergens(self, ingredient: str) -> list[str]:
+        """Allergen groups the ingredient to replace belongs to ("egg" -> ["egg"], "cream" -> ["dairy"])."""
+        terms = {ingredient}
+        try:
+            resolved = self.stats.resolve(ingredient)
+            terms.add(resolved.base)
+            terms.update(resolved.names)
+        except UnknownIngredientError:
+            pass                                    # the miner reports an unknown ingredient
+        matcher = self.retriever.matcher
+        return [a for a in matcher.allergens
+                if any(matcher.matches(t, a) for t in terms)]
+
     def _substitute(self, u: Understanding, changes: list[str]) -> _Draft:
         st = self.state
         notes: list[str] = []
@@ -458,10 +476,18 @@ class RecipeAgent:
                                          f"[{recipe_id}]? Its ingredients: {', '.join(names)}."]),
                               ids={recipe_id})
 
-        # "must contain" belongs to one search, so it is not applied to substitution evidence
+        # "must contain" belongs to one search, so it is not applied to substitution evidence.
+        # The allergen group of the ingredient being replaced is also closed for substitutes
+        # (replacing egg never offers egg yolk; replacing cream never offers parmesan).
+        implied = [a for a in self._implied_allergens(ingredient)
+                   if a not in st.exclude_allergens]
+        if implied:
+            notes.append(
+                "Substitutes from the same allergen group as the ingredient being replaced are "
+                f"not offered: {', '.join(implied)}. Evidence recipes also have to be free of it.")
         constraints = Constraints(exclude=tuple(st.exclude_ingredients),
                                   exclude_allergens=tuple(
-                                      st.exclude_allergens),
+                                      [*st.exclude_allergens, *implied]),
                                   max_steps=st.max_steps)
         mask, mask_sql = self.retriever.allowed_mask(constraints)
         try:
