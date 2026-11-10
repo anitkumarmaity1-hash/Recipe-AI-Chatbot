@@ -9,7 +9,7 @@ Understanding: `{"intent": "search", "dish_query": "penne pasta", "include": [],
 ```text
 Search: "penne pasta"
 Hard filters applied: none
-Eligible recipes: 121,896 of 121,896 pass these filters; nothing was relaxed.
+Eligible recipes: 121,887 of 121,896 pass these filters; nothing was relaxed.
 Ranking: BM25 + embeddings fused with RRF (k=60, weights 1.0/1.0).
 
 1. Creamy Penne Pasta  [ar:nvQzTEX.J7/2LmKnF8KjsR6aCqNHGxO]
@@ -29,6 +29,7 @@ Ranking: BM25 + embeddings fused with RRF (k=60, weights 1.0/1.0).
    Check: no hard filters active
 
 Ask for 'the second one' to see its ingredients and steps.
+Quality filter: 9 recipes whose title looks like a test record are never ranked here (config JUNK_TITLE_*); statistics counts include them.
 ```
 
 ### Turn 2
@@ -43,7 +44,7 @@ Understanding: `{"intent": "refine", "dish_query": null, "include": [], "include
 Added restriction: no dairy (allergen check on every ingredient line).
 Search: "penne pasta"
 Hard filters applied: no dairy (allergen check)
-Eligible recipes: 51,174 of 121,896 pass these filters; nothing was relaxed.
+Eligible recipes: 51,166 of 121,896 pass these filters; nothing was relaxed.
 Ranking: BM25 + embeddings fused with RRF (k=60, weights 1.0/1.0).
 
 1. Penne Pasta with Spinach and Bacon  [ar:23to8XzUux0FF.g5ZFsqnxvhByMzfJ.]
@@ -99,6 +100,7 @@ Ranking: BM25 + embeddings fused with RRF (k=60, weights 1.0/1.0).
 
 Ask for 'the second one' to see its ingredients and steps.
 Allergen checks read the ingredient text only; hidden sources (for example milk inside chocolate chips) cannot be detected. This is not medical advice: always check the real labels.
+Quality filter: 9 recipes whose title looks like a test record are never ranked here (config JUNK_TITLE_*); statistics counts include them.
 ```
 
 ### Turn 3
@@ -145,7 +147,7 @@ Understanding: `{"intent": "refine", "dish_query": null, "include": [], "include
 Removed restriction: dairy.
 Search: "penne pasta"
 Hard filters applied: none
-Eligible recipes: 121,896 of 121,896 pass these filters; nothing was relaxed.
+Eligible recipes: 121,887 of 121,896 pass these filters; nothing was relaxed.
 Ranking: BM25 + embeddings fused with RRF (k=60, weights 1.0/1.0).
 
 1. Creamy Penne Pasta  [ar:nvQzTEX.J7/2LmKnF8KjsR6aCqNHGxO]
@@ -165,5 +167,6 @@ Ranking: BM25 + embeddings fused with RRF (k=60, weights 1.0/1.0).
    Check: no hard filters active
 
 Ask for 'the second one' to see its ingredients and steps.
+Quality filter: 9 recipes whose title looks like a test record are never ranked here (config JUNK_TITLE_*); statistics counts include them.
 ```
 

@@ -11,7 +11,7 @@ Added restriction: no peanut (allergen check on every ingredient line).
 Ingredient match for: egg, onion, tomato, rice (4 ingredients)
 Hard filters applied: no peanut (allergen check); at most 6 steps
 Recipes using at least one of your ingredients: 45,578 of 121,896.
-Of these, 5,623 pass the hard filters; nothing was relaxed. Recipes without instructions are not ranked.
+Of these, 5,620 pass the hard filters; nothing was relaxed. Recipes without instructions are not ranked.
 Ranking: score = 4 x coverage - 2 x extra - 0.1 x steps (steps counted up to 30). coverage = matched / your ingredients; extra = extra needed / ingredients the recipe needs (pantry staples are not counted). Weights are design choices (src/recipebot/config.py), not measured values.
 
 1. Chilaquiles III  [ar:DeNVpFQNRBa82qC8Y2NfyLO6UInx9qG]  score 1.70
@@ -52,13 +52,14 @@ Ranking: score = 4 x coverage - 2 x extra - 0.1 x steps (steps counted up to 30)
 Ask for 'the second one' to see its ingredients and steps.
 Quantities: Ingredient names match, but quantity sufficiency could not be verified from the dataset.
 Allergen checks read the ingredient text only; hidden sources (for example milk inside chocolate chips) cannot be detected. This is not medical advice: always check the real labels.
+Quality filter: 9 recipes whose title looks like a test record are never ranked here (config JUNK_TITLE_*); statistics counts include them.
 ```
 
 ### Turn 2
 
 **User:** Exclude eggs too.
 
-Understanding: `{"intent": "refine", "dish_query": null, "include": [], "include_any": [], "exclude": ["eggs"], "allow": [], "max_steps": null, "available": [], "stat_type": null, "k": null, "target_recipe_id": null, "target_recipe_title": null, "ingredient_to_replace": null, "restriction_type": "preference", "reason": null}`
+Understanding: `{"intent": "refine", "dish_query": null, "include": [], "include_any": [], "exclude": ["eggs"], "allow": [], "max_steps": null, "available": [], "stat_type": null, "k": null, "target_recipe_id": null, "target_recipe_title": null, "ingredient_to_replace": null, "restriction_type": null, "reason": null}`
 
 **Chatbot:**
 
@@ -68,7 +69,7 @@ Ingredient match for: onion, tomato, rice (3 ingredients)
 Not counted: 'egg' is in your ingredient list but you also excluded it.
 Hard filters applied: no peanut, egg (allergen check); at most 6 steps
 Recipes using at least one of your ingredients: 23,290 of 121,896.
-Of these, 3,412 pass the hard filters; nothing was relaxed. Recipes without instructions are not ranked.
+Of these, 3,409 pass the hard filters; nothing was relaxed. Recipes without instructions are not ranked.
 Ranking: score = 4 x coverage - 2 x extra - 0.1 x steps (steps counted up to 30). coverage = matched / your ingredients; extra = extra needed / ingredients the recipe needs (pantry staples are not counted). Weights are design choices (src/recipebot/config.py), not measured values.
 
 1. Hoppin' John   [epi:4UUQ6uRJcpuLIZPkPud5UWwRkViq0Z.]  score 2.35
@@ -108,6 +109,7 @@ Ranking: score = 4 x coverage - 2 x extra - 0.1 x steps (steps counted up to 30)
 Ask for 'the second one' to see its ingredients and steps.
 Quantities: Ingredient names match, but quantity sufficiency could not be verified from the dataset.
 Allergen checks read the ingredient text only; hidden sources (for example milk inside chocolate chips) cannot be detected. This is not medical advice: always check the real labels.
+Quality filter: 9 recipes whose title looks like a test record are never ranked here (config JUNK_TITLE_*); statistics counts include them.
 ```
 
 ### Turn 3
@@ -124,7 +126,7 @@ Ingredient match for: onion, tomato, rice, garlic (4 ingredients)
 Not counted: 'egg' is in your ingredient list but you also excluded it.
 Hard filters applied: no peanut, egg (allergen check); at most 6 steps
 Recipes using at least one of your ingredients: 43,543 of 121,896.
-Of these, 6,266 pass the hard filters; nothing was relaxed. Recipes without instructions are not ranked.
+Of these, 6,263 pass the hard filters; nothing was relaxed. Recipes without instructions are not ranked.
 Ranking: score = 4 x coverage - 2 x extra - 0.1 x steps (steps counted up to 30). coverage = matched / your ingredients; extra = extra needed / ingredients the recipe needs (pantry staples are not counted). Weights are design choices (src/recipebot/config.py), not measured values.
 
 1. Hoppin' John   [epi:4UUQ6uRJcpuLIZPkPud5UWwRkViq0Z.]  score 2.60
@@ -165,6 +167,7 @@ Ranking: score = 4 x coverage - 2 x extra - 0.1 x steps (steps counted up to 30)
 Ask for 'the second one' to see its ingredients and steps.
 Quantities: Ingredient names match, but quantity sufficiency could not be verified from the dataset.
 Allergen checks read the ingredient text only; hidden sources (for example milk inside chocolate chips) cannot be detected. This is not medical advice: always check the real labels.
+Quality filter: 9 recipes whose title looks like a test record are never ranked here (config JUNK_TITLE_*); statistics counts include them.
 ```
 
 ### Turn 4

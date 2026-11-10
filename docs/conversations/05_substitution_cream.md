@@ -2,7 +2,7 @@
 
 **User:** Take a penne pasta recipe and replace the cream without dairy.
 
-Understanding: `{"intent": "substitute", "dish_query": "penne pasta", "include": [], "include_any": [], "exclude": [], "allow": [], "max_steps": null, "available": [], "stat_type": null, "k": null, "target_recipe_id": null, "target_recipe_title": null, "ingredient_to_replace": "cream", "restriction_type": null, "reason": null}`
+Understanding: `{"intent": "substitute", "dish_query": "penne pasta", "include": [], "include_any": [], "exclude": [], "allow": [], "max_steps": null, "available": [], "stat_type": null, "k": null, "target_recipe_id": null, "target_recipe_title": null, "ingredient_to_replace": "cream", "restriction_type": "diet", "reason": null}`
 
 **Chatbot:**
 

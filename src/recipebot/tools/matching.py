@@ -32,6 +32,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterable, Sequence
 
+import duckdb
 import numpy as np
 import yaml
 
@@ -102,6 +103,17 @@ class MatchHit:
 
 
 @dataclass
+class AlternativeHit(MatchHit):
+    """A recipe that does NOT pass the hard constraints, shown only when nothing eligible exists.
+
+    `violations` lists every hard constraint it breaks, with the evidence (the ingredient line,
+    the step count). It is never returned as a normal result.
+    """
+
+    violations: list[str] = field(default_factory=list)
+
+
+@dataclass
 class MatchResult:
     terms: list[str]                   # base names actually used
     unknown: list[dict[str, Any]]      # [{"term": ..., "suggestions": [...]}]
@@ -116,9 +128,12 @@ class MatchResult:
     note: str = ""
     sql: str = ""
     mask_sql: str = ""
+    # only filled when n_eligible == 0: closest recipes that break a hard constraint, clearly marked
+    alternatives: list[AlternativeHit] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
-        return {**self.__dict__, "hits": [h.__dict__ for h in self.hits]}
+        return {**self.__dict__, "hits": [h.__dict__ for h in self.hits],
+                "alternatives": [a.__dict__ for a in self.alternatives]}
 
 
 # ----------------------------------------------------------------------
@@ -313,12 +328,14 @@ class RecipeMatcher:
         terms, unknown, dropped = self.prepare_terms(
             available, constraints.exclude, constraints.exclude_allergens, allergen_matcher)
 
-        def result(hits: list[MatchHit], n_candidates=0, n_eligible=0, note="", sql="") -> MatchResult:
+        def result(hits: list[MatchHit], n_candidates=0, n_eligible=0, note="", sql="",
+                   alternatives=()) -> MatchResult:
             return MatchResult(
                 terms=[t.base for t in terms], unknown=unknown, dropped=dropped,
                 constraints=constraints.describe(), n_total=len(allowed),
                 n_candidates=n_candidates, n_eligible=n_eligible, hits=hits,
-                settings=cfg.describe(), note=note, sql=sql, mask_sql=mask_sql)
+                settings=cfg.describe(), note=note, sql=sql, mask_sql=mask_sql,
+                alternatives=list(alternatives))
 
         if not terms:
             return result([], note="None of your ingredients could be used "
@@ -331,14 +348,18 @@ class RecipeMatcher:
 
         # row_idx, n_core, n_extra, n_matched, n_steps
         data = np.array(rows, dtype=np.int64)
+        # before the hard constraints, for the alternatives
+        everything = data
         keep = (allowed[data[:, 0]] & (data[:, 4] >= 1)
                 & (data[:, 3] >= cfg.min_matched))
         data = data[keep]
         n_eligible = len(data)
         if n_eligible == 0:
+            alternatives = self._closest_violating(
+                terms, everything, constraints, allowed, k, allergen_matcher)
             return result([], n_candidates, 0,
                           "No recipe uses your ingredients and satisfies the hard constraints; "
-                          "nothing was relaxed.", sql)
+                          "nothing was relaxed.", sql, alternatives)
 
         coverage = data[:, 3] / len(terms)
         extra_ratio = data[:, 2] / np.maximum(data[:, 1], 1)
@@ -349,6 +370,82 @@ class RecipeMatcher:
         hits = self._build_hits(terms, data[order], coverage[order],
                                 extra_ratio[order], score[order])
         return result(hits, n_candidates, n_eligible, sql=sql)
+
+    # -- closest alternatives when nothing is eligible ----------------------------------
+    def _closest_violating(self, terms, data, constraints: Constraints, allowed: np.ndarray,
+                           k: int, allergen_matcher: AllergenMatcher | None,
+                           scan: int = 60) -> list[AlternativeHit]:
+        """Best-scoring recipes that use the ingredients but BREAK a hard constraint.
+
+        Same score formula as normal ranking. Only recipes with at least one proven violation are
+        kept; a recipe excluded for another reason (no instructions, hidden title) is skipped.
+        """
+        cfg = self.settings
+        usable = data[(data[:, 4] >= 1) & (data[:, 3] >= cfg.min_matched)]
+        usable = usable[~allowed[usable[:, 0]]]
+        if not len(usable):
+            return []
+        coverage = usable[:, 3] / len(terms)
+        extra_ratio = usable[:, 2] / np.maximum(usable[:, 1], 1)
+        score = (cfg.w_coverage * coverage - cfg.w_extra * extra_ratio
+                 - cfg.w_steps * np.minimum(usable[:, 4], cfg.step_cap))
+        order = np.lexsort(
+            (usable[:, 0], usable[:, 4], -np.round(score, 9)))[:scan]
+        hits = self._build_hits(terms, usable[order], coverage[order],
+                                extra_ratio[order], score[order])
+        violations = self._violations([h.row_idx for h in hits], {h.row_idx: h.n_steps for h in hits},
+                                      constraints, allergen_matcher)
+        out = [AlternativeHit(**h.__dict__, violations=violations[h.row_idx])
+               for h in hits if violations[h.row_idx]]
+        return out[:k]
+
+    def _violations(self, row_idxs: list[int], n_steps: dict[int, int], constraints: Constraints,
+                    allergen_matcher: AllergenMatcher | None) -> dict[int, list[str]]:
+        """Every hard constraint each recipe breaks, with the evidence, read from the database."""
+        out: dict[int, list[str]] = {r: [] for r in row_idxs}
+        marks = ",".join("?" * len(row_idxs))
+        if constraints.max_steps is not None:
+            for r in row_idxs:
+                if n_steps[r] > constraints.max_steps:
+                    out[r].append(
+                        f"has {n_steps[r]} steps (your limit is {constraints.max_steps})")
+        banned = self._excluded_bases(constraints.exclude)
+        required = {name: term for term in constraints.include
+                    for name in self.stats.resolve(term).names}
+        have: dict[int, set[str]] = {r: set() for r in row_idxs}
+        for r, canonical, base in self.con.execute(
+                "SELECT row_idx, canonical, canonical_base FROM recipe_ingredient "
+                f"WHERE row_idx IN ({marks})", row_idxs).fetchall():
+            have[r].update((canonical, base))
+            if base in banned:
+                out[r].append(f"contains {base}, which you excluded")
+        for r in row_idxs:
+            for term in dict.fromkeys(required.values()):
+                names = {n for n, t in required.items() if t == term}
+                if not names & have[r]:
+                    out[r].append(
+                        f"does not contain {term}, which you require")
+        allergen_matcher = allergen_matcher or self.allergen_matcher
+        if constraints.exclude_allergens:
+            if allergen_matcher is None:
+                raise ValueError(
+                    "An allergen matcher is required when allergens are excluded.")
+            try:
+                line_rows = self.con.execute(
+                    f"SELECT row_idx, ingredients_clean FROM recipes WHERE row_idx IN ({marks})",
+                    row_idxs).fetchall()
+            except duckdb.BinderException:      # a database without the text column: use the names
+                line_rows = [(r, sorted(have[r])) for r in row_idxs]
+            for r, lines in line_rows:
+                for allergen in constraints.exclude_allergens:
+                    line = next(
+                        (x for x in lines or [] if allergen_matcher.matches(x, allergen)), None)
+                    if line:
+                        out[r].append(
+                            f"{allergen} (ingredient line: \"{line}\")")
+        for r in out:
+            out[r] = list(dict.fromkeys(out[r]))
+        return out
 
     # -- evidence for the top k ---------------------------------------------------
     def _build_hits(self, terms, data, coverage, extra_ratio, score) -> list[MatchHit]:
@@ -414,4 +511,11 @@ class RecipeMatcher:
             if sorted(h.matched + h.unused) != sorted(res.terms):
                 problems.append(
                     f"{h.id}: matched + unused do not add up to your ingredients")
+        if res.hits and res.alternatives:
+            problems.append(
+                "alternatives are only allowed when no recipe is eligible")
+        for a in res.alternatives:
+            if not a.violations:
+                problems.append(
+                    f"{a.id}: listed as an alternative without a violated constraint")
         return problems

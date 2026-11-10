@@ -23,3 +23,11 @@ If nothing passes, the answer says no recipe was found and that nothing was rela
 
 ## Quantities
 Quantities you give are not compared: the answer states that name-level matching was done and that quantity sufficiency was not verified.
+
+## When nothing is eligible: closest alternatives (clearly marked)
+If no recipe passes the hard constraints, the answer says so and that nothing was relaxed. It then lists up to `k`
+recipes that use your ingredients but BREAK a constraint, under the heading "NOT ELIGIBLE ... VIOLATE a hard
+constraint". They use the same score, each one names every rule it breaks with the evidence (the step count, the
+excluded ingredient, the ingredient line that contains the allergen word), and they are never counted as results
+or selectable as "the first one". A recipe whose violation cannot be proven from the database is not shown.
+Code: `RecipeMatcher._closest_violating` in `src/recipebot/tools/matching.py`.

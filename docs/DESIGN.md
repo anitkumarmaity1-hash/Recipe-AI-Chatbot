@@ -81,3 +81,10 @@
 - **Evidence gate:** an adapted recipe is built only from a substitute with level direct, or level indirect with at least `SUB_ADAPT_MIN_SUPPORT` (3) recipes. Otherwise the answer says WEAK EVIDENCE, lists what was found and builds nothing.
 - **Recipe lookup:** when the user names a dish and an ingredient ("replace the cream in a penne recipe"), only recipes that contain that ingredient are searched, so the original always has the ingredient to replace.
 - **Limits:** thresholds are design choices, not measured; title words are a rough proxy for "same dish"; evidence shows other recipes use the substitute, not that it works in this recipe.
+
+## 11. Junk-title filter (query time)
+- **Problem:** the source data has test records such as "Tst" that rank in search, matching and fewest-steps lists.
+- **Choice:** a rebuild would change recipe row order and invalidate the 25-minute embeddings index, so the filter runs at query time instead: `HybridRetriever.allowed_mask` also excludes junk titles (`src/recipebot/normalization/titles.py`, thresholds `JUNK_TITLE_*` in `config.py`). Nothing is deleted from the database.
+- **Rules:** fewer than 3 letters, no vowel (except BLT, BBQ), or 8+ consonants in a row. Conservative on purpose.
+- **Disclosure:** answers that rank recipes end with a "Quality filter" line giving the number hidden. Statistics (counts, percentages, medians) still count every recipe. `python -m recipebot.diagnose_titles` lists what is hidden.
+- **Limit:** rules are heuristics; some junk titles with vowels remain visible.

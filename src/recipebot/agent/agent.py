@@ -189,6 +189,7 @@ class RecipeAgent:
         info = self._hit_info([h.row_idx for h in res.hits])
         text = composer.compose_search(res, st.unenforced, info, changes,
                                        self._hit_lines([h.row_idx for h in res.hits]))
+        text += self._quality_note("\n")
         return _Draft(text, "search", res.to_dict(), {h.id for h in res.hits},
                       [composer.fmt_int(res.n_allowed), composer.fmt_int(res.n_total)])
 
@@ -217,8 +218,19 @@ class RecipeAgent:
 
         st.set_results(res.hits)
         text = match_composer.compose_match(res, st.unenforced, changes)
-        return _Draft(text, "match", res.to_dict(), {h.id for h in res.hits},
-                      match_composer.expected_numbers(res))
+        text += self._quality_note("\n")
+        shown = {h.id for h in res.hits} | {
+            a.id for a in res.alternatives}   # alternatives are cited too
+        return _Draft(text, "match", res.to_dict(), shown, match_composer.expected_numbers(res))
+
+    def _quality_note(self, prefix: str = "") -> str:
+        """One line saying how many junk-titled recipes are never ranked ('' when none or unknown)."""
+        junk = getattr(self.retriever, "junk", None)
+        n = int(junk.sum()) if junk is not None else 0
+        if not n:
+            return ""
+        return (f"{prefix}Quality filter: {composer.fmt_int(n)} recipes whose title looks like a test "
+                "record are never ranked here (config JUNK_TITLE_*); statistics counts include them.")
 
     def _hit_info(self, row_idxs: list[int]) -> dict[int, tuple[int, int]]:
         if not row_idxs:
@@ -334,6 +346,8 @@ class RecipeAgent:
                 "Your active restrictions were applied because this answer lists recipes.")
         if allergens:
             notes.append(composer.ALLERGEN_DISCLAIMER)
+        if self._quality_note():
+            notes.append(self._quality_note())
         return _Draft(composer.compose_stats(res, notes), "stats", res.to_dict(),
                       {row["id"] for row in res.value}, composer.expected_numbers(res))
 

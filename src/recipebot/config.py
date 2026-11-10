@@ -44,6 +44,19 @@ MAX_RESULT_K: int = 20           # upper limit for "show me N recipes"
 DEFAULT_TOP_K: int = 10
 CONVERSATION_DIR: Path = PROJECT_ROOT / "docs" / "conversations"
 
+# ---- Junk-title filter (query time, no rebuild): titles that look like test records ------------
+# Source data contains records such as "Tst". They are never ranked in search, matching or
+# fewest-steps lists (statistics still count every recipe). Run `python -m recipebot.diagnose_titles`
+# to see exactly what is hidden. Set JUNK_TITLE_FILTER = False to switch it off.
+JUNK_TITLE_FILTER: bool = True
+# a title with fewer letters/digits is junk
+JUNK_TITLE_MIN_LETTERS: int = 3
+# a word with this many consonants in a row is junk
+JUNK_TITLE_MAX_CONSONANT_RUN: int = 8
+# real titles without vowels, never treated as junk
+JUNK_TITLE_ALLOW: tuple[str, ...] = (
+    "blt", "blts", "cblt", "cblts", "bbq", "bbqs", "pbj", "pbjs")
+
 # ---- Ingredient matching, Task 2 (Step 10): change a value and rerun ----------
 # Score = W_COVERAGE * coverage - W_EXTRA * extra_ratio - W_STEPS * min(steps, STEP_CAP)
 #   coverage    = matched / number of ingredients the user listed

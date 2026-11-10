@@ -16,12 +16,9 @@ The baseline is the same Gemini model asked once, with no database and no tools.
 **One-shot answer:**
 
 ```text
-Based on the well-known Recipe Box dataset (often referred to as the Epicurious, AllRecipes, and Food Network dataset compiled by Carolyn Adams/Horev), the exact analysis of the ingredients yields the following numbers:
+Based on the standard analysis of the Recipe Box dataset (often referred to as the Epicurious, AllRecipes, and Food Network dataset compiled on Kaggle), **48,938** recipes contain both garlic and onion. 
 
-*   **Exact count:** 78,542 recipes
-*   **Percentage of the dataset:** 62.8%
-
-*(Note: This calculation considers recipes that explicitly list variants of both garlic (e.g., garlic cloves, garlic powder) and onion (e.g., yellow onion, onion powder, green onions/scallions) in their ingredient lists.)*
+Out of the total 124,943 recipes in the dataset, this represents **39.17%** of the recipes.
 ```
 
 **Chatbot answer:**
@@ -42,15 +39,38 @@ Definition of "contains": A recipe 'contains' an ingredient if at least one row 
 **One-shot answer:**
 
 ```text
-Based on the Recipe Box (Food.com) dataset, here are the five recipes that contain "tomato" in their ingredients and have the fewest instruction steps:
+To find the five recipes containing "tomato" with the fewest instruction steps in the Recipe Box dataset (assuming the standard Kaggle dataset containing fields like `title`, `ingredients`, `directions`, and `id`/index), we look for recipes where the ingredient list includes "tomato" and the instructions (`directions` array) have the minimum length.
 
-1. **Recipe ID: 172935** (1 step)
-2. **Recipe ID: 295175** (1 step)
-3. **Recipe ID: 310850** (1 step)
-4. **Recipe ID: 379373** (1 step)
-5. **Recipe ID: 419330** (1 step)
+*(Note: Since I do not have a live execution environment connected to your specific local file of the Recipe Box dataset loaded into my context, I will provide the query/code method to extract this exact answer, along with the expected result structure. If you are running this in Python with Pandas, here is the exact code to get your answer:)*
 
-*(Note: There are numerous recipes in the dataset with only 1 instruction step that include tomato; these represent the first five sorted by recipe ID.)*
+### Python Code to Extract the Answer:
+```python
+import ast
+import pandas as pd
+
+# Load the dataset (adjust path as needed)
+df = pd.read_csv("full_dataset.csv")
+
+# Ensure directions and ingredients are parsed correctly (they are often stored as string representations of lists)
+# If they are already lists, you can skip the literal_eval step.
+
+
+def safe_eval(val):
+    if isinstance(val, str):
+        try:
+            return ast.literal_eval(val)
+        except:
+            return []
+    return val if isinstance(val, list) else []
+
+
+df["directions_list"] = df["directions"].apply(safe_eval)
+df["ingredients_list"] = df["ingredients"].apply(safe_eval)
+
+# Filter for recipes containing 'tomato' in the ingredients
+tomato_mask = df["ingredients_list"].apply(
+    lambda ingredients: any(
+        "tom
 ```
 
 **Chatbot answer:**
@@ -62,10 +82,11 @@ Recipes with the fewest steps:
 3. Refreshing Mango Chutney  [ar:BqfGsVgk7WHPebuzDH3IIRDAo0Vy8Hy]  - 1 step
 4. Fresh Mild Salsa  [ar:JbfChmEYkdCkIrzqZph1dWJgf/CimkW]  - 1 step
 5. Easy Brunswick Stew  [ar:VaZnpzH6pGqrBgnqdWMWhjHMwgT.wL2]  - 1 step
-Recipes analyzed: 6,014
+Recipes analyzed: 6,012
 Filters applied: contains all of tomato; at least 1 step(s)
 Calculation: One step = one sentence of the cleaned instructions (split with pysbd). Recipes with 0 steps (no usable instructions) are excluded from 'fewest steps' rankings unless min_steps is set to 0. Ties are broken by recipe ID.
 Definition of "contains": A recipe 'contains' an ingredient if at least one row of recipe_ingredient for that recipe has a canonical name equal to the ingredient or to one of its listed variants (data/taxonomy/ingredient_variants.yaml). All names on a line count ('salt and pepper' counts both); names after 'or' (alternatives) do NOT count. Matching uses normalized canonical names, not free text.
+Note: Quality filter: 9 recipes whose title looks like a test record are never ranked here (config JUNK_TITLE_*); statistics counts include them.
 ```
 
 
@@ -76,32 +97,32 @@ Definition of "contains": A recipe 'contains' an ingredient if at least one row 
 **One-shot answer:**
 
 ```text
-Based on the ingredients you have (eggs, onions, tomatoes, and rice) and your constraints (no peanuts, at most 6 instruction steps, from the Recipe Box dataset), here are five recipe suggestions along with their dataset IDs:
+Based on the ingredients you have (eggs, onions, tomatoes, and rice) and your constraints (no peanuts, at most six instruction steps, selected from the Recipe Box dataset), here are five recipe suggestions along with their dataset IDs:
 
 1. **Egg Fried Rice**
-   * **Recipe ID:** `20054`
-   * **Matching Ingredients Used:** Rice, eggs, onions (and usually pantry staples like oil/soy sauce).
-   * **Why it fits:** A classic, quick dish that utilizes your rice, eggs, and onions in 6 steps or less and contains no peanuts.
+   * **Recipe ID:** `506c117eb931d87e1f41d996`
+   * **Ingredients used:** Eggs, onions, rice.
+   * **Description:** A classic, quick stir-fry combining leftover rice with scrambled eggs and aromatics.
 
 2. **Tomato and Egg Stir-Fry (Fan Qie Chao Dan)**
-   * **Recipe ID:** `39423`
-   * **Matching Ingredients Used:** Tomatoes, eggs, onions.
-   * **Why it fits:** A quintessential comforting homestyle dish that heavily features tomatoes and eggs, often garnished with green onions. 
+   * **Recipe ID:** `8997a47ef0e85efca9e7eef2`
+   * **Ingredients used:** Eggs, tomatoes, onions.
+   * **Description:** A comforting homestyle Chinese dish featuring juicy tomatoes and soft scrambled eggs, great served over a bowl of rice.
 
-3. **Spanish Rice with Egg**
-   * **Recipe ID:** `159821`
-   * **Matching Ingredients Used:** Rice, tomatoes, onions, eggs.
-   * **Why it fits:** Uses all four of your core ingredients to create a flavorful tomato-based rice topped or served with eggs.
+3. **Simple Spanish Rice with Fried Egg**
+   * **Recipe ID:** `785d0d1b61972bcfdca6d093`
+   * **Ingredients used:** Rice, tomatoes, onions, eggs.
+   * **Description:** Savory tomato-infused rice topped with a crispy-edged fried egg for a complete, hearty meal.
 
-4. **Simple Egg Biryani / Rice Bowl**
-   * **Recipe ID:** `84102`
-   * **Matching Ingredients Used:** Rice, eggs, onions, tomatoes.
-   * **Why it fits:** Combines onions and tomatoes into a quick masala base, mixes in the rice, and adds boiled or fried eggs on top.
+4. **Persian-Style Tomato Rice (Dami-ye Goje-Farangi)**
+   * **Recipe ID:** `788647bdf2f919f2913b482b`
+   * **Ingredients used:** Rice, tomatoes, onions.
+   * **Description:** A fragrant one-pot rice dish cooked down with grated tomatoes, onions, and spices. (You can easily fry an egg to put on top!)
 
-5. **Tomato Rice (Thakkali Sadam)**
-   * **Recipe ID:** `245110`
-   * **Matching Ingredients Used:** Tomatoes, onions, rice (can easily be served with a side of boiled eggs).
-   * **Why i
+5. **Quick Egg and Tomato Curry with Rice**
+   * **Recipe ID:** `4201c1074e019688dfca7cb7`
+   * **Ingredients used:** Eggs, tomatoes, onions, rice.
+   * **Description:** Hard-boiled o
 ```
 
 **Chatbot answer:**
@@ -111,7 +132,7 @@ Added restriction: no peanut (allergen check on every ingredient line).
 Ingredient match for: egg, onion, tomato, rice (4 ingredients)
 Hard filters applied: no peanut (allergen check); at most 6 steps
 Recipes using at least one of your ingredients: 45,578 of 121,896.
-Of these, 5,623 pass the hard filters; nothing was relaxed. Recipes without instructions are not ranked.
+Of these, 5,620 pass the hard filters; nothing was relaxed. Recipes without instructions are not ranked.
 Ranking: score = 4 x coverage - 2 x extra - 0.1 x steps (steps counted up to 30). coverage = matched / your ingredients; extra = extra needed / ingredients the recipe needs (pantry staples are not counted). Weights are design choices (src/recipebot/config.py), not measured values.
 
 1. Chilaquiles III  [ar:DeNVpFQNRBa82qC8Y2NfyLO6UInx9qG]  score 1.70
@@ -137,30 +158,26 @@ Ranking: score = 4 x coverage - 2 x extra - 0.1 x steps (steps counted up to 30)
 **One-shot answer:**
 
 ```text
-To find a banana bread recipe from the Recipe Box dataset (often known as the *Epicurious Recipes* dataset available on Kaggle), remove the eggs, and identify supported egg replacements from related baked goods in the same dataset, we look at common substitution patterns within baking science and cross-reference them with the ingredient combinations found across the corpus.
+Because I don't have access to the specific underlying database of the "Recipe Box" dataset (such as the Epicurious dataset commonly hosted on Kaggle) loaded into my immediate memory, I can't query specific internal recipe IDs. 
 
-*(Note: Since I am an AI text model without a live execution environment loaded with your specific local CSV file, I will use a standard representative recipe from the Epicurious Recipe Box dataset—often indexed by IDs like `recipe_10543` or similar Epicurious IDs—and apply dataset-wide substitution logic based on typical recipe metadata).*
+However, I can tell you how this is typically handled using the dataset's logic, and what data-driven substitutes you would find by analyzing related baked goods in that specific corpus.
 
----
+### Standard Banana Bread (Egg-Free Modification)
+In a standard banana bread recipe from the Recipe Box dataset (which usually relies on standard baking chemistry), eggs provide **structure, moisture, and leavening**. 
 
-### Step 1: The Original Recipe
-**Recipe ID:** `recipe_4821` (Representative Epicurious Banana Bread)
-*   **Ingredients:**
-    *   3 ripe bananas, mashed
-    *   1/3 cup melted butter
-    *   3/4 cup sugar
-    *   1 large egg, beaten
-    *   1 teaspoon vanilla extract
-    *   1 teaspoon baking soda
-    *   Pinch of salt
-    *   1 1/2 cups all-purpose flour
+If you remove 2 eggs from a standard recipe, you need to replace them with an equivalent volume and binding agent. 
 
-*Action:* **Remove the egg.**
+### Supported Egg Replacements in the Recipe Box Dataset
+If you were to query the dataset for baked goods (muffins, quick breads, and vegan/allergy-friendly cakes) that omit eggs, the most common data-supported replacements for binding and moisture are:
 
----
-
-### Step 2: Finding Supported Replacements in the Dataset
-In large recipe datasets like Recipe Box, eggs are frequently omitted or substituted in vegan, allergy-friendly, or "pantry-clearing" quick breads and muffins. By querying recipes in the dataset that lack "egg" in their ingredient list but contain "banana" or "applesauce" or "flax," we find the following statistically
+1. **Mashed Banana (Extra):** 
+   * *Dataset Context:* Since it's banana bread, increasing the banana content is the most frequent internal substitution. 
+   * *Ratio:* 1/4 cup of mashed banana per egg.
+2. **Applesauce:** 
+   * *Dataset Context:* Frequently used in quick breads and muffins as a fat and egg binder substitute.
+   * *Ratio:* 1/4 cup unsweetened applesauce per egg.
+3. **Yogurt or Sour Cream:** 
+   * *Dataset Context:* Often found in quick breads in this dataset to add mois
 ```
 
 **Chatbot answer:**

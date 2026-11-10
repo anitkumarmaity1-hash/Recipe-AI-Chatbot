@@ -22,7 +22,7 @@
         {
             "id": "T1-followup-no-dairy",
             "task": 1,
-            "what": "a new restriction refines the active search (pinned: 51,174 eligible)",
+            "what": "a new restriction refines the active search (eligible count checked by the quality-filter note, not pinned)",
             "turns": [
                 {
                     "say": "Find me a penne pasta recipe."
@@ -33,7 +33,7 @@
                         "intent": "refine",
                         "contains": [
                             "no dairy",
-                            "51,174"
+                            "Eligible recipes:"
                         ],
                         "min_ids": 3,
                         "ids_exist": true,
@@ -69,7 +69,7 @@
         {
             "id": "T1-fewest-steps-tomato",
             "task": 1,
-            "what": "ranking by instruction steps over the full filtered set (pinned: 6,014 analyzed)",
+            "what": "ranking by instruction steps over the full filtered set (count not pinned: the quality filter hides junk titles from rankings)",
             "baseline": {
                 "question": "In the Recipe Box dataset, among recipes containing tomato, which five recipes have the fewest instruction steps? Give their recipe IDs.",
                 "kind": "recipes",
@@ -83,7 +83,7 @@
                         "n_ids": 5,
                         "ids_exist": true,
                         "contains": [
-                            "6,014",
+                            "Recipes analyzed:",
                             "One step = one sentence"
                         ]
                     }
@@ -126,18 +126,17 @@
             ]
         },
         {
-            "id": "T1-no-match",
-            "task": 1,
-            "what": "contradictory hard constraints: says nothing matches and relaxes nothing",
+            "id": "T2-no-match",
+            "task": 2,
+            "what": "every ingredient the user has is also excluded: says nothing can be matched, lists no recipe, relaxes nothing",
             "turns": [
                 {
-                    "say": "Find me a recipe that contains tomato, but I cannot have tomato.",
+                    "say": "I have eggs and I cannot have eggs.",
                     "checks": {
                         "n_ids": 0,
-                        "contains_any": [
-                            "No recipe",
-                            "no recipe",
-                            "0 of"
+                        "contains": [
+                            "Not counted: 'egg'",
+                            "None of your ingredients could be used"
                         ]
                     }
                 }

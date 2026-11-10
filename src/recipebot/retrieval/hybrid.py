@@ -28,6 +28,7 @@ import numpy as np
 from recipebot import config
 from recipebot.db import connect
 from recipebot.normalization.allergens import AllergenMatcher, load_allergens
+from recipebot.normalization.titles import junk_mask
 from recipebot.retrieval.bm25 import Bm25Index
 from recipebot.retrieval.common import (
     BM25_WEIGHT,
@@ -135,6 +136,7 @@ class HybridRetriever:
         self.semantic_weight = semantic_weight
         self.pool_size = pool_size
         self.n = len(bm25.ids)
+        self._junk: np.ndarray | None = None
         self._check_alignment()
 
     # -- construction ----------------------------------------------------
@@ -177,10 +179,25 @@ class HybridRetriever:
             self._flags = self._flags()
         return self._flags
 
+    @property
+    def junk(self) -> np.ndarray:
+        """True where the title looks like a test record (config.JUNK_TITLE_*); built once."""
+        if self._junk is None:
+            if config.JUNK_TITLE_FILTER:
+                titles = [r[0] for r in self.con.execute(
+                    "SELECT title FROM recipes ORDER BY row_idx").fetchall()]
+                self._junk = junk_mask(titles)
+            else:
+                self._junk = np.zeros(self.n, dtype=bool)
+        return self._junk
+
     # -- hard constraints ---------------------------------------------------
     def allowed_mask(self, constraints: Constraints) -> tuple[np.ndarray, str]:
-        """True = recipe may be returned. Returns (mask, sql used)."""
+        """True = recipe may be returned. Returns (mask, sql used).
+
+        Besides the user's hard constraints, recipes with junk titles are never returned."""
         mask, sql, _ = build_sql_mask(self.stats, self.n, constraints)
+        mask &= ~self.junk
         for allergen in constraints.exclude_allergens:
             # raises on unknown allergen
             mask &= ~self.flags.contains(allergen)

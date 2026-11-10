@@ -27,8 +27,8 @@ CONVERSATIONS = {
         "with no peanuts and at most six instruction steps. Prefer recipes that need the fewest additional ingredients.",
         "Exclude eggs too.", "I also have garlic.", "Show me the first one."],
     "04_no_match.md": [
-        "Find me a recipe that contains tomato, but I cannot have tomato.",
-        "I have eggs and I cannot have eggs.", "Clear all my restrictions."],
+        "I have eggs and I cannot have eggs.",
+        "I have tomato and rice. No dairy, and at most 1 step.", "Clear all my restrictions."],
     "05_substitution_cream.md": [
         "Take a penne pasta recipe and replace the cream without dairy.", "No nuts either."],
     "06_substitution_weak_evidence.md": [

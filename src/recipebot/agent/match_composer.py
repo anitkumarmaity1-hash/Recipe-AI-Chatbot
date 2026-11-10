@@ -51,6 +51,18 @@ def compose_match(res: MatchResult, unenforced: Sequence[str] = (),
                  "Recipes without instructions are not ranked.")
     if not res.hits:
         lines.append(res.note)
+        if res.alternatives:
+            lines.append("")
+            lines.append("NOT ELIGIBLE - these recipes use your ingredients but VIOLATE a hard "
+                         "constraint. They are shown only so you can decide whether to change a "
+                         "restriction; none of them is a result.")
+            for pos, a in enumerate(res.alternatives, 1):
+                lines.append(
+                    f"{pos}. {a.title}  [{a.id}]  (closest by score {a.score:.2f}, NOT eligible)")
+                lines.append("   VIOLATES: " + "; ".join(a.violations))
+                lines.append(f"   Matched ({a.n_matched} of {len(res.terms)}): {_list(a.matched)} | "
+                             f"extra needed ({a.n_extra}): {_list(a.extra)} | {plural(a.n_steps, 'step')}")
+            lines.append("")
         lines.append("You can remove a restriction (for example 'dairy is fine now') "
                      "or list other ingredients.")
     else:

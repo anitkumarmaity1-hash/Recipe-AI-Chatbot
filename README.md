@@ -76,5 +76,7 @@ Results: `eval/results/` and the summary in `docs/EVALUATION.md`.
 - Allergen checks read ingredient text only; hidden sources are not detected. It never claims a recipe is medically safe.
 - Diets such as "vegan" cannot be proven from ingredient lists and are reported as not enforced.
 - Substitutions are built only from evidence in the dataset; weak evidence is shown but no adapted recipe is built.
+- Recipes whose title looks like a test record (for example "Tst") are never ranked; the answer says how many are hidden (`python -m recipebot.diagnose_titles` lists them).
+- If no recipe is eligible, the closest recipes that break a constraint are shown under "NOT ELIGIBLE", never as results.
 - Ingredient quantities are not compared; matches are by name and the answer says so.
 - Optional items not built: web UI, internet search for substitutions, fine-tuned model.
