@@ -1,0 +1,1 @@
+"""Streamlit front end for NOSH. All recipe facts come from the existing `recipebot` backend."""
