@@ -18,6 +18,11 @@ def test_hint_without_dairy():
         "Take a penne pasta recipe and replace the cream without dairy.", MAPPER) == ["dairy"]
 
 
+def test_hint_covers_common_dairy_and_egg_restriction_wording():
+    assert restriction_hints("Make it free from dairy", MAPPER) == ["dairy"]
+    assert restriction_hints("I cannot eat dairy", MAPPER) == ["dairy"]
+
+
 def test_hint_free_suffix_and_hyphen():
     assert restriction_hints("make it dairy-free", MAPPER) == ["dairy-free"]
     assert restriction_hints(
@@ -34,6 +39,7 @@ def test_hint_unsupported_diet_is_kept_so_it_can_be_reported():
 
 
 def test_hint_ignores_ingredient_phrases_and_plain_requests():
+    # The target ingredient is handled by the substitution's implied-allergen constraint.
     assert restriction_hints("remove the eggs", MAPPER) == []
     assert restriction_hints("make it without butter", MAPPER) == []
     assert restriction_hints("", MAPPER) == []
@@ -51,6 +57,17 @@ def test_agent_applies_a_restriction_the_model_missed(make_agent):
         U("substitute", target_recipe_id="ar:T", ingredient_to_replace="egg"))
     agent.handle("replace the egg, I cannot have dairy")
     assert agent.state.exclude_allergens == ["dairy"]
+
+
+def test_substitution_followup_restriction_is_applied_even_if_model_misses_it(make_agent):
+    agent = make_agent(
+        U("substitute", target_recipe_id="ar:T", ingredient_to_replace="egg"),
+        U("refine"))
+    agent.handle("replace the egg")
+    reply = agent.handle("I cannot have dairy")
+    assert agent.state.exclude_allergens == ["dairy"]
+    assert reply.tool == "substitute"
+    assert "ADAPTED RECIPE" not in reply.text
 
 
 def test_replacing_egg_closes_the_egg_group_for_substitutes(make_agent):

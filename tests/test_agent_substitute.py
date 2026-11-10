@@ -188,5 +188,7 @@ def test_a_failed_validation_withholds_the_answer(make_agent, monkeypatch):
     agent = make_agent(
         U("substitute", target_recipe_id="ar:T", ingredient_to_replace="egg"))
     reply = agent.handle("replace the egg")
-    assert reply.text.startswith("Results withheld") and "boom" in reply.text
+    assert reply.text.startswith("I can't provide an adapted recipe") and "boom" in reply.text
     assert "ADAPTED RECIPE" not in reply.text and agent.state.mode == "search"
+    assert reply.payload["adapted"] is None
+    assert reply.payload["adaptation_validation"]["passed"] is False

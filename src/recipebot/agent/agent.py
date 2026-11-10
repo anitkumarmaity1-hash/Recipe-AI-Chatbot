@@ -124,9 +124,10 @@ class RecipeAgent:
             return AgentReply(f"I could not understand that message ({exc}). "
                               "Nothing was changed; please rephrase.")
         timings = {"understand": 1000 * (time.perf_counter() - t0)}
-        if u.intent is Intent.SUBSTITUTE:
-            # Safety net: a restriction written in the message ("without dairy") must not depend
-            # on the model having copied it into `exclude`.
+        if (u.intent is Intent.SUBSTITUTE
+                or (u.intent is Intent.REFINE and self.state.mode == "substitute")):
+            # Safety net: restrictions in the user's own wording must not depend on Gemini
+            # copying them into `exclude`. This also covers follow-ups such as "no dairy either".
             u.exclude = merge_hints(message, u.exclude, self.mapper)
 
         # 3. Update the session; roll back if a restriction names an unknown ingredient.
@@ -503,12 +504,21 @@ class RecipeAgent:
         if adapted:
             problems += validate_adaptation(adapted,
                                             ev, constraints, self.retriever.matcher)
-        payload = {"evidence": ev.to_dict(), "adapted": adapted.to_dict()
-                   if adapted else None}
         if problems:
             logger.error("substitution verification failed: %s", problems)
-            return _Draft("Results withheld: an independent check failed, so no adapted recipe is "
-                          "shown. " + "; ".join(problems), tool="substitute", payload=payload)
+            # Do not leak a failed adapted object in the tool payload either. A refusal is the
+            # correct result when ANY line or step violates a hard restriction.
+            payload = {"evidence": ev.to_dict(), "adapted": None,
+                       "adaptation_validation": {"passed": False, "problems": problems}}
+            return _Draft(
+                f"I can't provide an adapted recipe for [{ev.original['id']}] that satisfies "
+                "your hard restrictions. The independent final-recipe check found: "
+                + "; ".join(problems)
+                + ". No adapted recipe is shown, and the original database recipe is unchanged.",
+                tool="substitute", payload=payload, ids={ev.original["id"]})
+
+        payload = {"evidence": ev.to_dict(), "adapted": adapted.to_dict()
+                   if adapted else None}
 
         st.active_recipe = {
             "id": ev.original["id"], "title": ev.original["title"]}

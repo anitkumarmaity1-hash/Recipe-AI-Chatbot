@@ -1,0 +1,82 @@
+name: Publish prebuilt recipe data
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: GitHub release tag used by scripts/fetch_prebuilt.py
+        required: true
+        default: data-v1
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-prebuilt-${{ inputs.release_tag }}
+  cancel-in-progress: false
+
+jobs:
+  build-and-publish:
+    name: Build database and indexes, then publish release asset
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      HF_HOME: ${{ github.workspace }}/.cache/huggingface
+      TOKENIZERS_PARALLELISM: "false"
+      OMP_NUM_THREADS: "2"
+      MKL_NUM_THREADS: "2"
+      RELEASE_TAG: ${{ inputs.release_tag }}
+      GH_TOKEN: ${{ github.token }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-lock.txt
+
+      - name: Cache embedding model
+        uses: actions/cache@v4
+        with:
+          path: .cache/huggingface
+          key: recipe-embedding-model-minilm-v1
+
+      - name: Install project dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-lock.txt
+          pip install -e .
+
+      - name: Download the three Recipe Box JSON files
+        run: python scripts/download_data.py
+
+      - name: Build recipe database
+        run: python -m recipebot.build_db
+
+      - name: Normalize all recipe ingredients
+        run: python -m recipebot.build_normalized
+
+      - name: Build BM25 index
+        run: python -m recipebot.build_indexes bm25
+
+      - name: Build semantic FAISS index
+        run: python -m recipebot.build_indexes embeddings
+
+      - name: Package prebuilt database and indexes
+        run: python scripts/pack_prebuilt.py
+
+      - name: Create or update GitHub release asset
+        run: |
+          if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" \
+              --target "$GITHUB_SHA" \
+              --title "NOSH prebuilt recipe data ($RELEASE_TAG)" \
+              --notes "Prebuilt DuckDB database, BM25 index, and FAISS semantic index for the Recipe Box chatbot. Rebuild from the public dataset and repository code using the Publish prebuilt recipe data workflow."
+          fi
+          gh release upload "$RELEASE_TAG" dist/nosh_data.zip --clobber
+          echo "Published asset: https://github.com/${GITHUB_REPOSITORY}/releases/download/${RELEASE_TAG}/nosh_data.zip"

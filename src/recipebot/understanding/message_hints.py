@@ -1,10 +1,10 @@
-"""Safety net for substitution requests: restrictions the user wrote in the message.
+"""Deterministic safety net for restrictions written in the user's own message.
 
-Why this exists: for "replace the cream without dairy" the language model may return an empty
-`exclude` list, and then "dairy" would silently not be a hard constraint. The safety decision
-must not depend on the model, so this module reads the user's own message with a few plain
-patterns and keeps only the phrases that restriction_terms.yaml says are allergen categories
-or unsupported diets. Ordinary ingredient phrases ("without butter") are left to the model.
+For substitutions and substitution follow-ups, a hard restriction such as "without dairy"
+must not depend on Gemini copying it into the structured `exclude` slot. This module extracts
+only phrases that restriction_terms.yaml maps to known allergen groups or explicitly unsupported
+diets. Ordinary ingredient exclusions (for example, "without butter") remain model-parsed and
+are independently checked against the complete adapted recipe.
 """
 
 from __future__ import annotations
@@ -18,7 +18,8 @@ _END = r"(?=\s*(?:[,.;:!?]|\band\b|\bor\b|\bbut\b|\bplease\b|$))"
 # "without dairy", "no nuts", "allergic to eggs", "cannot have dairy"
 _AFTER = re.compile(
     r"\b(?:without|avoid|no|allergic to|cannot have|can not have|can't have|cant have|"
-    r"don't eat|do not eat)\s+(?:any\s+|the\s+|all\s+|my\s+)?([a-z][a-z -]*?)" + _END)
+    r"don't eat|do not eat|cannot eat|can't eat|cant eat|free from|free of)"
+    r"\s+(?:any\s+|the\s+|all\s+|my\s+)?([a-z][a-z -]*?)" + _END)
 # "dairy free", "gluten-free"
 _FREE = re.compile(r"\b([a-z]+[ -]free)\b")
 _MAX_WORDS = 3
@@ -30,7 +31,7 @@ def _is_known(phrase: str, mapper: RestrictionMapper) -> bool:
 
 
 def restriction_hints(message: str, mapper: RestrictionMapper) -> list[str]:
-    """Allergen or unsupported-diet phrases found in the message, in order, without duplicates."""
+    """Known allergen or unsupported-diet phrases found in the message, in order."""
     text = (message or "").lower().replace("\u2019", "'")
     found: list[str] = []
     for pattern in (_AFTER, _FREE):

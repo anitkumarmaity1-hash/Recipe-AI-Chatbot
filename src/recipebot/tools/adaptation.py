@@ -115,7 +115,10 @@ def _line_is_clean(text: str, forms: Sequence[str], constraints: Constraints,
         return False
     if constraints.exclude and form_pattern(constraints.exclude).search(text):
         return False
-    if constraints.exclude_allergens and matcher is not None:
+    if constraints.exclude_allergens:
+        # Fail closed: missing allergen taxonomy must never make an evidence line look safe.
+        if matcher is None:
+            return False
         return not any(matcher.matches(text, a) for a in constraints.exclude_allergens)
     return True
 
@@ -178,14 +181,21 @@ def validate_adaptation(adapted: AdaptedRecipe, evidence: SubstitutionEvidence,
     1. The copy has the same number of ingredient lines as the original, and every line that
        is not listed as changed is identical to the original line.
     2. Exactly the lines that contain the replaced ingredient were changed.
-    3. No changed line and no step still names the replaced ingredient (the substitute's own
-       name is ignored), and no changed line contains an excluded ingredient or allergen.
-    4. The substitute is one of the evidence candidates with real dataset evidence, is in the
+    3. No ingredient line or instruction step still names the replaced ingredient (the
+       substitute's own name is ignored).
+    4. EVERY ingredient line and instruction step is checked against every hard ingredient and
+       allergen exclusion. This is intentionally stricter than checking only replacement lines:
+       a dairy-free adaptation must not leave butter or Parmesan elsewhere in the recipe.
+    5. The candidate name itself is checked against the hard exclusions, so an allergen-derived
+       substitute such as egg white cannot be selected for an egg-free adaptation.
+    6. The substitute is one of the evidence candidates with real dataset evidence, is in the
        dataset vocabulary and is not the replaced ingredient.
-    5. Every supporting id is one of the recipes cited for that substitute.
-    6. The step count is unchanged.
-    Pre-existing conflicts in OTHER lines are not errors here; they are reported separately
-    (evidence.residual_conflicts) because this step replaces one ingredient only.
+    7. Every supporting id is one of the recipes cited for that substitute.
+    8. The step count is unchanged.
+
+    Any pre-existing hard-constraint conflict in the original recipe prevents an adapted recipe
+    from being returned. The caller may explain the conflicting line and ask the user whether
+    they want to remove or replace that additional ingredient too.
     """
     constraints = constraints or Constraints()
     original = evidence.original
@@ -210,31 +220,52 @@ def validate_adaptation(adapted: AdaptedRecipe, evidence: SubstitutionEvidence,
             f"changed lines {sorted(changed_at)} differ from the lines that contain "
             f"{evidence.target['base']}: {sorted(expected)}")
 
-    for change in adapted.changed_lines:
-        text = lines[change["position"]
-                     ] if change["position"] < len(lines) else ""
-        if pattern.search(_without_name(text, name)):
-            problems.append(
-                f"changed line {change['position'] + 1} still names {adapted.ingredient}")
-        if constraints.exclude and form_pattern(constraints.exclude).search(text):
-            problems.append(
-                f"changed line {change['position'] + 1} contains an excluded ingredient")
-        if constraints.exclude_allergens:
-            if matcher is None:
-                problems.append(
-                    "an allergen matcher is required to validate the adapted lines")
-            else:
-                for allergen in constraints.exclude_allergens:
-                    terms = matcher.matches(text, allergen)
-                    if terms:
-                        problems.append(
-                            f"changed line {change['position'] + 1} contains {allergen} ('{terms[0]}')")
+    excluded_pattern = form_pattern(constraints.exclude)
+    if constraints.exclude_allergens and matcher is None:
+        problems.append(
+            "an allergen matcher is required to validate every adapted ingredient line and instruction")
 
+    # Check the COMPLETE adapted ingredient list, not only the lines that were changed.
+    for i, text in enumerate(lines):
+        if pattern.search(_without_name(text, name)):
+            line_kind = "changed line" if i in changed_at else "ingredient line"
+            problems.append(
+                f"{line_kind} {i + 1} still names {adapted.ingredient}")
+        if excluded_pattern.search(text):
+            problems.append(
+                f"ingredient line {i + 1} contains an excluded ingredient")
+        if matcher is not None:
+            for allergen in constraints.exclude_allergens:
+                terms = matcher.matches(text, allergen)
+                if terms:
+                    problems.append(
+                        f"ingredient line {i + 1} contains {allergen} (excluded allergen; '{terms[0]}')")
+
+    # Also check the complete instructions: removing a listed ingredient is not enough if a
+    # preparation step still tells the user to add it or another excluded item.
     for i, step in enumerate(adapted.steps):
         if pattern.search(_without_name(step, name)):
             problems.append(f"step {i + 1} still names {adapted.ingredient}")
+        if excluded_pattern.search(step):
+            problems.append(f"step {i + 1} mentions an excluded ingredient")
+        if matcher is not None:
+            for allergen in constraints.exclude_allergens:
+                terms = matcher.matches(step, allergen)
+                if terms:
+                    problems.append(
+                        f"step {i + 1} mentions excluded allergen {allergen} ('{terms[0]}')")
     if len(adapted.steps) != len(split_steps(original["instructions"])):
         problems.append("the number of steps changed")
+
+    # Check the proposed substitute name directly, independently of how it appears in a line.
+    if excluded_pattern.search(name):
+        problems.append(f"substitute '{name}' is an excluded ingredient")
+    if constraints.exclude_allergens and matcher is not None:
+        for allergen in constraints.exclude_allergens:
+            terms = matcher.matches(name, allergen)
+            if terms:
+                problems.append(
+                    f"substitute '{name}' belongs to excluded allergen {allergen} ('{terms[0]}')")
 
     cand = next((c for c in evidence.candidates if c.name == name), None)
     if cand is None:

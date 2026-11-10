@@ -1,7 +1,8 @@
-# Substitution evidence (Task 3, Step 11)
+# Substitution evidence and adaptation (Task 3, Steps 11–12)
 
-Status: evidence mining only. The adapted recipe, the taste/texture text, the four-label
-uncertainty block and the refusal message are Step 12. Code: `src/recipebot/tools/substitution.py`.
+Evidence mining is Step 11 (`src/recipebot/tools/substitution.py`). Building and independently
+validating a separate adapted recipe is Step 12 (`src/recipebot/tools/adaptation.py` and
+`src/recipebot/agent/agent.py`).
 
 ## What it answers
 
@@ -38,14 +39,19 @@ the same every run and every number has a denominator.
 Only the WITHOUT group (the cited recipes) is filtered by allergens, excluded ingredients and
 maximum steps. The WITH group is not, otherwise "no dairy" would empty the baseline when X is
 cream. `residual_conflicts` lists other lines of the original recipe that still break a
-constraint after X is replaced (for example parmesan in a "no dairy" pasta). Step 12 must
-show these and must never claim the adapted recipe is allergy-safe.
+constraint after X is replaced (for example butter or Parmesan in a "no dairy" pasta). Such
+conflicts are not silently carried into an adapted recipe: Step 12 checks EVERY adapted ingredient
+line and instruction step. If any hard exclusion remains, the agent refuses to return the adapted
+recipe and does not expose the failed adapted object in its payload. The user can then ask to
+replace the additional conflicting ingredient. The chatbot never claims the result is allergy-safe.
 
 ## Independent check
 
 `SubstitutionMiner.verify()` re-reads every cited recipe from the database (not through the mask)
 and checks: it exists, it does not contain X, it contains the substitute, no excluded ingredient,
-no excluded allergen, it has steps and obeys the step limit. The command line runs it every time.
+no excluded allergen, it has steps and obeys the step limit. The agent runs it on every substitution.
+`validate_adaptation()` then checks the whole proposed recipe, including unchanged lines, every
+revised instruction, and the substitute name itself. Missing allergen-matcher capability fails closed.
 
 ## Honest limits
 
@@ -74,3 +80,5 @@ Find a recipe id with `python -m recipebot.retrieval.hybrid "banana bread" -k 5`
 3. Why must a substitute be enriched, not just frequent?
 4. What is the difference between "direct" and "indirect" evidence here?
 5. Why is the roles file kept separate from dataset evidence?
+6. Why does an adaptation get refused when an unchanged line still contains dairy?
+7. Why is checking the candidate name itself necessary for egg-free substitutions?

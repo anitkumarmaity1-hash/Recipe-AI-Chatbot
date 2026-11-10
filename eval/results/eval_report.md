@@ -1,6 +1,6 @@
 # Evaluation results
 
-11 of 11 cases passed.
+10 of 11 cases passed.
 
 | Case | Task | What it checks | Result |
 |---|---|---|---|
@@ -13,5 +13,17 @@
 | T2-no-match | 2 | every ingredient the user has is also excluded: says nothing can be matched, lists no recipe, relaxes nothing | PASS |
 | T2-match-constraints | 2 | ingredient match with a peanut exclusion and a step limit | PASS |
 | T2-followup-exclude-eggs | 2 | 'Exclude eggs too' updates the results and keeps the step limit | PASS |
-| T3-sub-cream-pasta | 3 | the assignment's own example: replace cream in a pasta recipe without dairy (the recipe used must contain cream) | PASS |
+| T3-sub-cream-pasta | 3 | the assignment's own example: replace cream in a pasta recipe without dairy (the recipe used must contain cream) | FAIL |
 | T3-sub-banana-eggs | 3 | egg-free banana bread: adapted recipe only with real evidence, otherwise an honest weak-evidence answer | PASS |
+
+## Failures
+
+### T3-sub-cream-pasta
+
+- turn 1: reply contains none of: ['ADAPTED RECIPE', 'WEAK EVIDENCE', 'INSUFFICIENT EVIDENCE']
+
+Last reply:
+
+```text
+I can't provide an adapted recipe for [fn:6Vi.RvXGd.fVPiUz10UWjlpt.bzgnXW] that satisfies your hard restrictions. The independent final-recipe check found: ingredient line 10 contains dairy (excluded allergen; 'butter'); ingredient line 11 contains dairy (excluded allergen; 'parmesan'); step 7 mentions excluded allergen dairy ('butter'); step 8 mentions excluded allergen dairy ('cheese'). No adapted recipe is shown, and the original database recipe is unchanged.
+```

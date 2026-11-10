@@ -175,6 +175,42 @@ def test_validator_catches_an_excluded_ingredient_or_allergen_in_the_new_line(se
     assert any("excluded ingredient" in p for p in problems)
 
 
+def test_validator_checks_unchanged_ingredient_lines_for_allergen_conflicts(setup):
+    ev, _, adapted, _ = built(setup)
+    # The original bread still contains butter outside the replaced-egg line.
+    problems = validate_adaptation(
+        adapted, ev, Constraints(exclude_allergens=("dairy",)), MATCHER)
+    assert any("contains dairy" in p for p in problems)
+    assert not any("ADAPTED RECIPE" in p for p in problems)
+
+
+def test_validator_checks_every_line_for_explicit_ingredient_exclusions(setup):
+    ev, _, adapted, _ = built(setup)
+    problems = validate_adaptation(
+        adapted, ev, Constraints(exclude=("butter",)), MATCHER)
+    assert any("ingredient line 5 contains an excluded ingredient" in p for p in problems)
+
+
+def test_validator_rejects_egg_white_as_an_egg_free_substitute(setup):
+    ev, candidate, _, _ = built(setup)
+    egg_white = dataclasses.replace(candidate, name="egg white")
+    ev.candidates = [egg_white]
+    egg_matcher = AllergenMatcher({"egg": {"include": ["egg", "egg white"], "exceptions": []}})
+    adapted = adapt(ev, egg_white, Constraints(exclude_allergens=("egg",)), egg_matcher)
+    problems = validate_adaptation(
+        adapted, ev, Constraints(exclude_allergens=("egg",)), egg_matcher)
+    assert any("substitute 'egg white' belongs to excluded allergen egg" in p
+               for p in problems)
+
+
+def test_validator_checks_instruction_steps_for_excluded_ingredients(setup):
+    ev, _, adapted, _ = built(setup)
+    adapted.steps[0] = "Stir in butter and bake."
+    problems = validate_adaptation(
+        adapted, ev, Constraints(exclude=("butter",)), MATCHER)
+    assert any("step 1 mentions an excluded ingredient" in p for p in problems)
+
+
 def test_validator_refuses_to_check_allergens_without_a_matcher(setup):
     ev, _, adapted, _ = built(setup)
     problems = validate_adaptation(
