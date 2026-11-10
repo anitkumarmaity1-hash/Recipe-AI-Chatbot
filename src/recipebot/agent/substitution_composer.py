@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from typing import Sequence
 
+from recipebot import config
 from recipebot.agent.composer import ALLERGEN_DISCLAIMER, constraints_text, fmt_int
 from recipebot.tools.adaptation import AdaptedRecipe
 from recipebot.tools.substitution import Candidate, SubstitutionEvidence
@@ -111,11 +112,24 @@ def compose_substitution(ev: SubstitutionEvidence, adapted: AdaptedRecipe | None
 
     if adapted is None or chosen is None:
         lines.append("")
-        lines.append("Result: INSUFFICIENT EVIDENCE. " + (ev.note or
-                     "No substitute has dataset evidence, so I did not build an adapted recipe."))
-        lines.append("I did not build an adapted recipe, because I will not present a swap the "
-                     "dataset does not support. Options above marked NO dataset evidence are "
-                     "unverified cooking knowledge only.")
+        weak = [x for x in ev.candidates if x.level != "none"]
+        if ev.status == "ok" and weak:
+            lines.append(
+                "Result: WEAK EVIDENCE. The dataset has some support for "
+                + ", ".join(x.name for x in weak)
+                + " (listed above), but not enough to build an adapted recipe: a substitute needs "
+                  f"direct evidence (same dish family) or at least {config.SUB_ADAPT_MIN_SUPPORT} "
+                  "related recipes.")
+            lines.append("I did not build an adapted recipe, because I will not present a swap the "
+                         "dataset supports only weakly. The cited recipes are shown so you can judge "
+                         "them yourself; options marked NO dataset evidence are unverified cooking "
+                         "knowledge only.")
+        else:
+            lines.append("Result: INSUFFICIENT EVIDENCE. " + (ev.note or
+                         "No substitute has dataset evidence, so I did not build an adapted recipe."))
+            lines.append("I did not build an adapted recipe, because I will not present a swap the "
+                         "dataset does not support. Options above marked NO dataset evidence are "
+                         "unverified cooking knowledge only.")
     else:
         lines.append("")
         lines.append(f"Chosen substitute: {chosen.name} - the best-supported option "
@@ -126,10 +140,14 @@ def compose_substitution(ev: SubstitutionEvidence, adapted: AdaptedRecipe | None
         lines.append(f'ADAPTED RECIPE (a separate copy of "{o["title"]}" [{o["id"]}]; '
                      "the original is unchanged in the database)")
         lines.append("Ingredients:")
-        changed = {x["position"] for x in adapted.changed_lines}
+        changed = {x["position"]: x for x in adapted.changed_lines}
         for i, text in enumerate(adapted.ingredient_lines):
             lines.append(f"  - {text}" +
                          ("   <- CHANGED" if i in changed else ""))
+            ref = changed.get(i)
+            if ref and ref["reference_id"]:
+                lines.append(f'      for scale: [{ref["reference_id"]}] uses "{ref["reference_line"]}" '
+                             "(another recipe's amount, not verified for this one)")
         lines.append("Instructions:")
         revised = {x["position"] for x in adapted.step_changes}
         for i, text in enumerate(adapted.steps):

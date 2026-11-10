@@ -6,7 +6,7 @@ pyyaml
 python-dotenv
 pysbd
 pytest
-ingredient-parser-nlp
+ingredient-parser-nlp==2.9.2
 faiss-cpu
 sentence-transformers
 google-genai

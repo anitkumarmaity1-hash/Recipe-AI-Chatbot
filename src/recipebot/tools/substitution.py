@@ -74,6 +74,7 @@ class SubstitutionSettings:
     pool_size: int = config.SUB_POOL_SIZE
     max_candidates: int = config.SUB_MAX_CANDIDATES
     max_cited: int = config.SUB_MAX_CITED
+    title_match_min_words: int = config.SUB_TITLE_MATCH_MIN_WORDS
     generic_title_words: frozenset[str] = frozenset(
         config.SUB_GENERIC_TITLE_WORDS)
 
@@ -338,6 +339,26 @@ class SubstitutionMiner:
             sets[row_idx].add(base)
         return sets
 
+    def _title_words(self, original: dict[str, Any]) -> set[str]:
+        """Title words of the original recipe, without generic style words ('easy', 'best'...)."""
+        return {t for t in tokenize(original["title"]) if t not in self.settings.generic_title_words}
+
+    def _title_need(self, words: set[str]) -> int:
+        """Shared title words needed for the same dish name (never more than the title has). No title words = a number no recipe can reach."""
+        return min(self.settings.title_match_min_words, len(words)) if words else 10**6
+
+    def _title_overlaps(self, row_idx: np.ndarray, words: set[str]) -> np.ndarray:
+        """For each recipe in row_idx: how many of `words` its title contains."""
+        out = np.zeros(len(row_idx), dtype=np.int64)
+        if not words or not len(row_idx):
+            return out
+        position = {int(r): i for i, r in enumerate(row_idx)}
+        for r, title in self.con.execute(
+                "SELECT row_idx, title FROM recipes WHERE row_idx IN (SELECT unnest(?::INTEGER[]))",
+                [list(position)]).fetchall():
+            out[position[r]] = len(words & set(tokenize(title)))
+        return out
+
     def _titles(self, row_idxs: list[int]) -> dict[int, tuple[str, str]]:
         if not row_idxs:
             return {}
@@ -399,7 +420,11 @@ class SubstitutionMiner:
             if len(row_idx) and int(row_idx.max()) >= len(allowed):
                 raise ValueError(
                     "The hard-constraint mask is shorter than the recipe table.")
-            related = sim >= cfg.related_min_sim
+            # related = similar ingredients OR the same dish name (shared title words)
+            title_words = self._title_words(original)
+            title_hit = self._title_overlaps(
+                row_idx, title_words) >= self._title_need(title_words)
+            related = (sim >= cfg.related_min_sim) | title_hit
             with_all = np.flatnonzero(has_target & related)
             without_all = np.flatnonzero(~has_target & related)
             without_ok = without_all[allowed[row_idx[without_all]]
@@ -456,8 +481,9 @@ class SubstitutionMiner:
         for i in without_pool:
             r = int(row_idx[i])
             words = set(tokenize(titles[r][1]))
-            same_dish = (sim[i] >= cfg.neighbor_min_sim
-                         and len(original_words & words) >= cfg.min_title_overlap)
+            shared = len(original_words & words)
+            same_dish = ((sim[i] >= cfg.neighbor_min_sim and shared >= cfg.min_title_overlap)
+                         or shared >= self._title_need(original_words))
             tier[r] = "direct" if same_dish else "indirect"
 
         sets = self._sets_of([int(row_idx[i])

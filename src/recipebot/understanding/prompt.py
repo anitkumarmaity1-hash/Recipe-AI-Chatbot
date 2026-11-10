@@ -45,7 +45,12 @@ intent (choose one):
 - stats: a question about the whole dataset (how many, what percentage, average
   or median number of ingredients, most common ingredients, fewest steps).
 - match: the user lists ingredients they HAVE and asks what to cook.
-- substitute: replace an ingredient in a recipe.
+- substitute: change an ingredient of ONE named or pointed-at recipe: replace, swap, remove,
+  leave out or "make it without" an ingredient ("take a banana bread recipe and remove the
+  eggs", "replace the cream in a pasta recipe", "make the second one without butter").
+  Put the dish in dish_query (or the recipe id in target_recipe_id) and the ingredient in
+  ingredient_to_replace; leave exclude empty. A restriction on a search with no recipe being
+  adapted ("no eggs please") is refine, not substitute.
 - show_details: show the ingredients or steps of one recipe.
 - clear_filters: forget all restrictions.
 - unsupported: cooking time, prep time, calories, nutrition, price, or anything
@@ -104,6 +109,11 @@ EXAMPLES: list[tuple[dict[str, Any], str, dict[str, Any]]] = [
     ({"last_results": [{"n": 1, "id": "ar:1", "title": "Banana Bread"},
                        {"n": 2, "id": "ar:2", "title": "Zucchini Bread"}]},
      "Replace the butter in the second one.",
+     {"intent": "substitute", "target_recipe_id": "ar:2", "ingredient_to_replace": "butter"}),
+    ({}, "Take a banana bread recipe and remove the eggs.",
+     {"intent": "substitute", "dish_query": "banana bread", "ingredient_to_replace": "eggs"}),
+    ({"active_recipe": {"id": "ar:2", "title": "Zucchini Bread"}},
+     "Make it without butter.",
      {"intent": "substitute", "target_recipe_id": "ar:2", "ingredient_to_replace": "butter"}),
     ({"active_recipe": {"id": "ar:2", "title": "Zucchini Bread"}},
      "Show me the steps.",

@@ -187,7 +187,8 @@ class RecipeAgent:
 
         st.set_results(res.hits)
         info = self._hit_info([h.row_idx for h in res.hits])
-        text = composer.compose_search(res, st.unenforced, info, changes)
+        text = composer.compose_search(res, st.unenforced, info, changes,
+                                       self._hit_lines([h.row_idx for h in res.hits]))
         return _Draft(text, "search", res.to_dict(), {h.id for h in res.hits},
                       [composer.fmt_int(res.n_allowed), composer.fmt_int(res.n_total)])
 
@@ -227,6 +228,16 @@ class RecipeAgent:
             f"SELECT row_idx, n_steps, n_ingredients FROM recipe_stats WHERE row_idx IN ({marks})",
             row_idxs).fetchall()
         return {r: (s, n) for r, s, n in rows}
+
+    def _hit_lines(self, row_idxs: list[int]) -> dict[int, list[str]]:
+        """row_idx -> cleaned ingredient lines, shown as evidence under each search result."""
+        if not row_idxs:
+            return {}
+        marks = ",".join("?" * len(row_idxs))
+        rows = self.con.execute(
+            f"SELECT row_idx, ingredients_clean FROM recipes WHERE row_idx IN ({marks})",
+            row_idxs).fetchall()
+        return {r: list(lines or []) for r, lines in rows}
 
     # ------------------------------------------------------------------
     # Statistics
@@ -396,13 +407,19 @@ class RecipeAgent:
             words = set(tokenize(query))
             if active and words and words <= set(tokenize(active["title"])):
                 return active["id"], active["title"]
-            # no restrictions: the original may contain the thing the user wants to remove
-            res = self.retriever.search(query, Constraints(), k=1)
+            # No restrictions: the original may contain the thing the user wants to remove.
+            # It must CONTAIN that ingredient, so only recipes that have it are searched
+            # ("replace the cream in a penne recipe" must not return a recipe without cream).
+            ingredient = u.ingredient_to_replace
+            res = self.retriever.search(
+                query, Constraints(include=(ingredient,) if ingredient else ()), k=1)
             if not res.hits:
-                return f"I could not find a recipe for '{query}'."
+                what = f" that contains {ingredient}" if ingredient else ""
+                return f"I could not find a recipe for '{query}'{what}."
             hit = res.hits[0]
+            what = f" that contains {ingredient}" if ingredient else ""
             notes.append(f"No recipe id was given, so I used the best search match for "
-                         f"'{query}': {hit.title} [{hit.id}]. Say so if you meant another one.")
+                         f"'{query}'{what}: {hit.title} [{hit.id}]. Say so if you meant another one.")
             return hit.id, hit.title
         if active:
             return active["id"], active["title"]

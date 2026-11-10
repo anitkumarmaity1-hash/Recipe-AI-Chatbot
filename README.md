@@ -1,45 +1,80 @@
 # NOSH Recipe AI Chatbot
 
-A grounded conversational recipe assistant over the Recipe Box dataset (~125k recipes).
-The LLM only interprets questions and words answers; all facts, counts, filtering,
-ranking and validation are computed deterministically from the data.
+A command-line chatbot over the Recipe Box dataset (125,164 raw recipes from AllRecipes, Epicurious
+and Food Network; 121,896 usable after cleaning). It searches recipes, answers statistics, matches
+recipes to the ingredients you have, and adapts a recipe when an ingredient is missing or forbidden.
 
-> Work in progress. Search, ingredient matching, statistics and recipe details work in a command-line chat. Substitution and the web UI are not built yet.
+**How it avoids made-up answers:** the language model (Gemini) only turns your message into a small
+structured request. Every recipe, id, count, ranking and substitution comes from DuckDB and the
+indexes, and an output guard re-checks recipe ids and numbers before anything is shown.
+Design decisions: `docs/DESIGN.md`. Task 3 evidence rules: `docs/SUBSTITUTION.md`. Matching score:
+`docs/MATCHING.md`. Evaluation: `docs/EVALUATION.md`. AI tools used: `AI_USAGE.md`.
 
-## Quick start (Windows PowerShell)
+## 1. Install (Python 3.11 or newer)
+
+Windows PowerShell:
 
     py -3.12 -m venv .venv
     .\.venv\Scripts\Activate.ps1
     pip install -r requirements.txt
     pip install -e .
-    pytest
 
-## Build the data (run once, from the project root, venv active)
+macOS / Linux:
 
-    python scripts/download_data.py            # 3 raw JSON files into data/raw/
-    python -m recipebot.build_db               # DuckDB: recipes + recipes_excluded (about 15 s)
-    python -m recipebot.build_normalized       # parser cache + recipe_ingredient + recipe_stats (first run about 25 min)
-    python -m recipebot.build_indexes bm25     # BM25 index (seconds)
-    python -m recipebot.build_indexes embeddings   # MiniLM vectors + FAISS (about 25 min, resumable)
+    python3 -m venv .venv && source .venv/bin/activate
+    pip install -r requirements.txt && pip install -e .
 
-## Try it
+`requirements-lock.txt` lists the exact versions the project was developed and tested with; use `pip install -r requirements-lock.txt` instead if the plain install misbehaves.
 
-    python -m recipebot.tools.stats count --all-of garlic onion
-    python -m recipebot.retrieval.hybrid "penne pasta" --exclude-allergen dairy -k 5
-    python -m recipebot.retrieval.hybrid "banana bread" --exclude egg --max-steps 8
+The first run downloads a small NLTK tagger (parser library) and the MiniLM embedding model, so it needs internet once.
 
-Set up the language model once: copy `.env.example` to `.env`, put your key in `GEMINI_API_KEY` (never commit it), then:
+## 2. API key
 
-    python -m recipebot.understanding.backend "I cannot have dairy"
+Copy `.env.example` to `.env` and put a free Google AI Studio key in `GEMINI_API_KEY` (never commit `.env`).
+Check it works: `python -m recipebot.understanding.backend "I cannot have dairy"`
 
-Chat in the terminal (needs the database, both indexes and a filled `.env`):
+## 3. Get the data (choose one)
+
+**A. Prebuilt (about 2 minutes):**
+
+    python scripts/fetch_prebuilt.py
+
+**B. Full build from the original files (about 50 minutes, run from the project root, venv active):**
+
+    python scripts/download_data.py              # 3 raw JSON files into data/raw/
+    python -m recipebot.build_db                 # DuckDB, about 15 s
+    python -m recipebot.build_normalized         # ingredient normalization, first run about 25 min
+    python -m recipebot.build_indexes bm25       # seconds
+    python -m recipebot.build_indexes embeddings # about 25 min, resumable
+
+## 4. Chat
 
     python -m recipebot.cli
-    python -m recipebot.cli --debug --save docs/conversations/01_pasta_dairy.md
+    python -m recipebot.cli --debug              # shows how each message was understood
 
-Example ingredient match (then try `Exclude eggs too`): `I have eggs, onions and tomatoes, no peanuts, under 6 steps`. How the ranking works: `docs/MATCHING.md`.
+Commands in the chat: `/help`, `/state`, `/reset`, `/debug`, `/quit`. Try:
 
-Commands inside the chat: `/help`, `/state`, `/reset`, `/debug`, `/quit`.
+- `Find me a penne pasta recipe.` then `I cannot have dairy.` then `Show me the first one.`
+- `How many recipes contain both garlic and onion? What percentage of the dataset is that?`
+- `Among recipes containing tomato, which five have the fewest instruction steps?`
+- `I have eggs, onions, tomatoes and rice. Suggest five recipes, no peanuts, at most six steps.` then `Exclude eggs too.`
+- `Take a penne pasta recipe and replace the cream without dairy.`
+- `Take a banana bread recipe and remove the eggs.`
 
-The first query with `--exclude-allergen` scans all ingredient lines once and caches the result in `data/index/allergen_flags.npz`.
-Details of every design decision: `docs/DESIGN.md`. AI tools used: `AI_USAGE.md`.
+## 5. Tests and evaluation
+
+    pytest                                  # unit tests, synthetic data, no network
+    python eval/run_eval.py                 # 11 evaluation cases on the real data (needs data and API key)
+    python eval/baseline.py                 # same questions to Gemini with no tools (one-shot baseline)
+    python eval/make_transcripts.py         # regenerates docs/conversations/*.md
+
+Results: `eval/results/` and the summary in `docs/EVALUATION.md`.
+
+## 6. What it cannot do (on purpose)
+
+- No cooking times, calories or nutrition: the dataset has none, so it says so instead of guessing.
+- Allergen checks read ingredient text only; hidden sources are not detected. It never claims a recipe is medically safe.
+- Diets such as "vegan" cannot be proven from ingredient lists and are reported as not enforced.
+- Substitutions are built only from evidence in the dataset; weak evidence is shown but no adapted recipe is built.
+- Ingredient quantities are not compared; matches are by name and the answer says so.
+- Optional items not built: web UI, internet search for substitutions, fine-tuned model.

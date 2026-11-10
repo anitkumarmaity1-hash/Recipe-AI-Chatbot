@@ -93,14 +93,25 @@ def _check_text(c: dict[str, Any], n_ingredients: int, n_steps: int) -> str:
     return "; ".join(parts) or "no hard filters active"
 
 
+MAX_EVIDENCE_LINES = 12     # ingredient lines printed per recipe; the rest are counted
+
+
 def compose_search(
     res: HybridResult,
     unenforced: Sequence[str],
     info: dict[int, tuple[int, int]],
     changes: Sequence[str] = (),
+    ingredient_lines: dict[int, list[str]] | None = None,
 ) -> str:
-    """info maps row_idx -> (n_steps, n_ingredients)."""
+    """info maps row_idx -> (n_steps, n_ingredients).
+
+    ingredient_lines maps row_idx -> the recipe's cleaned ingredient lines. They are printed
+    under each recipe when a hard filter is active, so the "Check" claim can be read in the data.
+    """
     c = res.constraints
+    show_lines = bool(ingredient_lines) and not (
+        not (c.get("include") or c.get("exclude") or c.get("exclude_allergens"))
+        and c.get("max_steps") is None)
     lines = list(changes)
     lines.append(f'Search: "{res.query}"')
     lines.append("Hard filters applied: " + constraints_text(c, unenforced))
@@ -122,6 +133,14 @@ def compose_search(
             lines.append(
                 f"   {plural(n_steps, 'step')} | {n_ing} ingredients | BM25 {bm}, embeddings {se}")
             lines.append(f"   Check: {_check_text(c, n_ing, n_steps)}")
+            if show_lines:
+                shown = (ingredient_lines or {}).get(h.row_idx, [])
+                lines.append(
+                    "   Ingredient lines (the evidence for the check):")
+                lines += [f"     - {text}" for text in shown[:MAX_EVIDENCE_LINES]]
+                if len(shown) > MAX_EVIDENCE_LINES:
+                    lines.append(
+                        f"     ... and {len(shown) - MAX_EVIDENCE_LINES} more")
         lines.append("")
         lines.append(
             "Ask for 'the second one' to see its ingredients and steps.")

@@ -77,6 +77,13 @@ SUB_MIN_ENRICHMENT: float = 0.02
 SUB_POOL_SIZE: int = 3000
 SUB_MAX_CANDIDATES: int = 5          # substitutes returned
 SUB_MAX_CITED: int = 5               # recipe ids cited per substitute
+# A recipe that shares at least this many (non-generic) title words with the original is
+# "related" even when its ingredient overlap is low, and counts as the same dish family.
+# Example: "Country Banana Bread" and "Banana Bread" share 2 words (banana, bread).
+SUB_TITLE_MATCH_MIN_WORDS: int = 2
+# An adapted recipe is only BUILT from a substitute with level "direct", or level "indirect"
+# supported by at least this many recipes. Weaker evidence is shown, but never turned into a recipe.
+SUB_ADAPT_MIN_SUPPORT: int = 3
 # words that describe a recipe's style, not its dish; ignored when comparing titles
 SUB_GENERIC_TITLE_WORDS: tuple[str, ...] = (
     "easy", "best", "classic", "quick", "simple", "homemade", "perfect", "favorite",

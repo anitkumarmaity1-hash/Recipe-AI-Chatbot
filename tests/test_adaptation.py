@@ -95,8 +95,9 @@ def test_only_the_lines_with_the_ingredient_change(setup):
     original = ev.original["ingredient_lines"]
     assert [c["position"] for c in adapted.changed_lines] == [5]
     assert adapted.changed_lines[0]["original"] == "1 cup egg"
-    assert adapted.ingredient_lines[5] == ('applesauce (amount not verified from the dataset; '
-                                           '[a:W1] uses "1 cup applesauce")')
+    assert adapted.ingredient_lines[5] == "applesauce (amount not verified from the dataset)"
+    assert adapted.changed_lines[0]["reference_id"] == "a:W1"
+    assert adapted.changed_lines[0]["reference_line"] == "1 cup applesauce"
     assert adapted.ingredient_lines[:5] == original[:5]
     assert adapted.ingredient_lines[6:] == original[6:]
     assert adapted.supporting_ids == ["a:W1", "a:W2", "a:W5"]

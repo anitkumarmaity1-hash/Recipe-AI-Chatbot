@@ -4,8 +4,8 @@ Input:  a SubstitutionEvidence (Step 11) = the original recipe plus ranked subst
         with cited recipe ids.
 Output: an AdaptedRecipe = a SEPARATE copy of the recipe in which
           * every ingredient line that contains the replaced ingredient is replaced by the
-            substitute (the amount is NOT invented: it is marked unverified and a real
-            dataset line is shown for reference),
+            substitute (the amount is NOT invented: the line says it is unverified, and a real
+            dataset line of another recipe is kept in changed_lines for reference),
           * every instruction step that names the replaced ingredient is revised by a plain
             word swap,
           * every other line and step is copied word for word.
@@ -22,6 +22,7 @@ import re
 from dataclasses import asdict, dataclass, field
 from typing import Any, Iterable, Sequence
 
+from recipebot import config
 from recipebot.normalization.allergens import AllergenMatcher
 from recipebot.normalization.steps import split_steps
 from recipebot.retrieval.masks import Constraints
@@ -88,16 +89,21 @@ class AdaptedRecipe:
 # ----------------------------------------------------------------------
 # Choosing and building
 # ----------------------------------------------------------------------
-def choose_candidate(evidence: SubstitutionEvidence) -> Candidate | None:
-    """The best-supported substitute: the Step 11 order is direct first, then indirect.
+def choose_candidate(evidence: SubstitutionEvidence,
+                     min_support: int = config.SUB_ADAPT_MIN_SUPPORT) -> Candidate | None:
+    """The best-supported substitute that is strong enough to build a recipe from, else None.
 
-    A candidate with level 'none' (cooking knowledge only) is never chosen, so the
-    adapted recipe always rests on recipes of the dataset.
+    Strong enough = level "direct" (same dish family), or level "indirect" with at least
+    `min_support` recipes. A candidate with level "none" (cooking knowledge only) is never
+    chosen. Weaker evidence is still listed in the answer, but no adapted recipe is built.
+    The Step 11 order is direct first, then indirect, so the first match is the best one.
     """
     if evidence.status != "ok":
         return None
     for cand in evidence.candidates:
-        if cand.level in ("direct", "indirect") and cand.evidence:
+        if not cand.evidence:
+            continue
+        if cand.level == "direct" or (cand.level == "indirect" and cand.n_support >= min_support):
             return cand
     return None
 
@@ -133,8 +139,8 @@ def adapt(evidence: SubstitutionEvidence, candidate: Candidate, constraints: Con
     for position in sorted(target_positions):
         if position >= len(lines):
             continue
-        new = (f'{name} ({AMOUNT_NOTE}; [{reference[0]}] uses "{reference[1]}")'
-               if reference else f"{name} ({AMOUNT_NOTE})")
+        # the list line stays clean; the reference amount is kept beside it (reference_id/line)
+        new = f"{name} ({AMOUNT_NOTE})"
         changed.append({"position": position, "original": lines[position], "adapted": new,
                         "reference_id": reference[0] if reference else None,
                         "reference_line": reference[1] if reference else None})
